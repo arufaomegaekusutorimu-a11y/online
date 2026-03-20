@@ -18,7 +18,6 @@
             touch-action: manipulation;
         }
 
-        /* ダイヤモンドの輝きアニメーション */
         .crystal-glow {
             filter: drop-shadow(0 0 30px rgba(14, 165, 233, 0.5));
             transition: transform 0.05s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -26,10 +25,9 @@
             -webkit-tap-highlight-color: transparent;
         }
         .crystal-glow:active {
-            transform: scale(0.85);
+            transform: scale(0.8);
         }
 
-        /* 浮遊テキスト */
         .floating-text {
             position: absolute;
             pointer-events: none;
@@ -37,136 +35,191 @@
             font-weight: 900;
             color: #0ea5e9;
             z-index: 50;
-            font-size: 1.5rem;
-            text-shadow: 0 2px 4px rgba(255,255,255,0.8);
+            font-size: 2rem;
+            text-shadow: 0 2px 8px rgba(255,255,255,0.9);
         }
 
         @keyframes floatUp {
             0% { transform: translateY(0) scale(1); opacity: 1; }
-            100% { transform: translateY(-120px) scale(1.2); opacity: 0; }
+            100% { transform: translateY(-150px) scale(1.5); opacity: 0; }
         }
 
-        /* スムーズなスクロール */
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        
-        .upgrade-card {
-            transition: all 0.2s;
-            flex-shrink: 0;
-            width: 140px;
+        .tab-content {
+            display: none;
+            height: 100%;
+            animation: fadeIn 0.2s ease-out;
         }
-        .upgrade-card:active { transform: scale(0.95); }
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.98); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .nav-btn.active {
+            color: #0ea5e9;
+            background: #f0f9ff;
+        }
+
         .upgrade-card:disabled {
-            opacity: 0.5;
-            filter: grayscale(1);
-            transform: none;
+            opacity: 0.6;
+            filter: grayscale(0.8);
         }
 
-        /* チャットのフェードアウト効果 */
-        #chat-section {
-            mask-image: linear-gradient(to top, black 80%, transparent 100%);
+        /* 通知ドット */
+        .notification-dot {
+            position: absolute;
+            top: 2px;
+            right: 25%;
+            width: 10px;
+            height: 10px;
+            background-color: #ef4444;
+            border-radius: 9999px;
+            border: 2px solid white;
+            display: none;
+        }
+        .notification-dot.show {
+            display: block;
         }
     </style>
 </head>
 <body class="h-screen flex flex-col">
 
     <!-- 通知トースト -->
-    <div id="toast" class="fixed top-24 left-1/2 -translate-x-1/2 bg-sky-600/90 backdrop-blur text-white px-6 py-3 rounded-full font-bold shadow-xl z-[100] hidden animate-bounce">
+    <div id="toast" class="fixed top-24 left-1/2 -translate-x-1/2 bg-sky-600/90 backdrop-blur text-white px-6 py-3 rounded-full font-bold shadow-xl z-[100] hidden">
         招待リンクをコピーしました！
     </div>
 
-    <!-- ヘッダー：ステータス -->
-    <header class="p-4 flex justify-between items-center bg-white/70 backdrop-blur-lg shadow-sm z-20">
-        <div id="user-info" class="flex items-center gap-2 cursor-pointer bg-white p-1 pr-4 rounded-full shadow-sm active:scale-95 transition-transform border border-sky-100">
-            <div id="p-avatar" class="w-9 h-9 rounded-full bg-sky-400 flex items-center justify-center text-lg shadow-inner">👤</div>
-            <div class="max-w-[80px] sm:max-w-none">
-                <div id="p-name" class="text-xs font-bold text-gray-800 truncate">読み込み中...</div>
-                <div class="text-[9px] text-sky-500 font-black uppercase">Master</div>
+    <!-- ヘッダー：共通ステータス -->
+    <header class="p-4 flex justify-between items-center bg-white/70 backdrop-blur-lg shadow-sm z-20 shrink-0">
+        <div id="user-info-btn" class="flex items-center gap-2 cursor-pointer bg-white p-1 pr-4 rounded-full shadow-sm active:scale-95 transition-transform border border-sky-100">
+            <div class="w-8 h-8 rounded-full bg-sky-400 flex items-center justify-center text-white text-sm">👤</div>
+            <div class="flex flex-col">
+                <div id="p-name" class="text-xs font-bold text-gray-800 max-w-[80px] truncate">読み込み中...</div>
+                <div id="online-count" class="text-[8px] text-green-500 font-bold">1名接続中</div>
             </div>
         </div>
-        <div class="flex flex-col items-end">
-            <div class="text-[10px] text-gray-400 font-bold">WORLD TOTAL</div>
-            <div id="global-score" class="text-sky-600 font-black text-sm">0</div>
+        <div class="text-center">
+            <div id="score-display" class="text-2xl font-black text-sky-600">0</div>
+            <div class="text-[9px] text-gray-400 font-bold tracking-tight">TOTAL POINTS</div>
         </div>
-        <button id="copy-btn" class="bg-sky-500 text-white w-10 h-10 rounded-full shadow-lg flex items-center justify-center active:scale-90 transition-transform">🔗</button>
+        <button id="copy-btn" class="bg-sky-50 text-sky-500 w-10 h-10 rounded-full flex items-center justify-center active:scale-90 transition-transform font-bold">🔗</button>
     </header>
 
-    <main class="flex-1 relative flex flex-col items-center justify-start pt-10 overflow-hidden">
-        <!-- スコア表示 -->
-        <div class="text-center z-10 pointer-events-none mb-8">
-            <div class="text-gray-400 text-xs font-bold tracking-widest uppercase">My Points</div>
-            <div id="score-display" class="text-6xl font-black text-sky-600 tracking-tighter drop-shadow-sm">0</div>
-            <div class="mt-2 inline-flex items-center gap-1 bg-white/80 px-3 py-1 rounded-full shadow-sm border border-sky-50">
-                <span class="text-amber-400 text-xs">⚡</span>
-                <span id="cps-display" class="text-xs font-bold text-gray-600">0</span>
-                <span class="text-[9px] text-gray-400 font-bold uppercase">pts/sec</span>
-            </div>
-        </div>
-
-        <!-- クリック対象 -->
-        <div id="main-clicker" class="flex-1 flex items-center justify-center w-full max-h-[300px]">
-            <div class="relative group">
-                <div class="absolute inset-0 bg-sky-400/30 blur-[60px] rounded-full scale-150 animate-pulse"></div>
-                <div class="text-[140px] crystal-glow select-none">💎</div>
-            </div>
-        </div>
-    </main>
-
-    <!-- 下部操作パネル：スマホ向けUI -->
-    <div class="bg-white rounded-t-[32px] shadow-[0_-10px_30px_rgba(0,0,0,0.05)] z-30 p-5 flex flex-col gap-4">
+    <!-- メインコンテンツエリア -->
+    <div class="flex-1 overflow-hidden relative">
         
-        <!-- アップグレードリスト -->
-        <div class="flex gap-3 overflow-x-auto hide-scrollbar pb-1">
-            <button id="upg-click" class="upgrade-card bg-sky-50 border-2 border-sky-100 p-3 rounded-2xl text-left">
-                <div class="flex justify-between items-start">
-                    <span class="text-2xl">🔥</span>
-                    <span class="text-[10px] bg-white px-2 py-0.5 rounded-full font-bold text-sky-500">POWER</span>
+        <!-- タブ1: クリック画面 -->
+        <section id="tab-home" class="tab-content active items-center pt-8">
+            <!-- 現在の能力値ステータス -->
+            <div class="flex gap-4 mb-4">
+                <div class="bg-white px-4 py-2 rounded-2xl shadow-sm border border-sky-100 text-center">
+                    <div class="text-[8px] font-bold text-gray-400 uppercase">Click Power</div>
+                    <div id="stat-click" class="text-sm font-black text-sky-500">+1</div>
                 </div>
-                <div class="font-bold text-xs mt-1 text-gray-700">クリック強化</div>
-                <div class="text-sky-600 font-black mt-2 text-sm"><span id="upg-click-cost">10</span> <span class="text-[9px]">pts</span></div>
-            </button>
-
-            <button id="upg-auto" class="upgrade-card bg-indigo-50 border-2 border-indigo-100 p-3 rounded-2xl text-left">
-                <div class="flex justify-between items-start">
-                    <span class="text-2xl">🤖</span>
-                    <span class="text-[10px] bg-white px-2 py-0.5 rounded-full font-bold text-indigo-500">AUTO</span>
+                <div class="bg-white px-4 py-2 rounded-2xl shadow-sm border border-sky-100 text-center">
+                    <div class="text-[8px] font-bold text-gray-400 uppercase">Auto Power</div>
+                    <div id="stat-auto" class="text-sm font-black text-indigo-500">0/sec</div>
                 </div>
-                <div class="font-bold text-xs mt-1 text-gray-700">自動ツール</div>
-                <div class="text-indigo-600 font-black mt-2 text-sm"><span id="upg-auto-cost">50</span> <span class="text-[9px]">pts</span></div>
-            </button>
+            </div>
 
-            <button id="upg-mega" class="upgrade-card bg-purple-50 border-2 border-purple-100 p-3 rounded-2xl text-left">
-                <div class="flex justify-between items-start">
-                    <span class="text-2xl">🏢</span>
-                    <span class="text-[10px] bg-white px-2 py-0.5 rounded-full font-bold text-purple-500">MEGA</span>
-                </div>
-                <div class="font-bold text-xs mt-1 text-gray-700">研究所</div>
-                <div class="text-purple-600 font-black mt-2 text-sm"><span id="upg-mega-cost">500</span> <span class="text-[9px]">pts</span></div>
-            </button>
-        </div>
+            <div id="main-clicker" class="relative flex-1 flex items-center justify-center w-full">
+                <div class="absolute inset-0 bg-sky-300/20 blur-[80px] rounded-full scale-110"></div>
+                <div class="text-[200px] crystal-glow select-none">💎</div>
+            </div>
 
-        <!-- チャット・入力：最小限に -->
-        <div class="flex flex-col gap-3">
-            <div id="chat-section" class="h-16 overflow-y-auto space-y-1 text-[10px] hide-scrollbar"></div>
-            <div class="flex gap-2">
-                <input type="text" id="chat-input" class="flex-1 bg-gray-100 p-3 rounded-2xl text-sm outline-none border-2 border-transparent focus:border-sky-300 transition-all" placeholder="メッセージを送る...">
-                <button id="chat-send" class="bg-gray-800 text-white w-12 h-12 flex items-center justify-center rounded-2xl shadow-md active:scale-90 transition-transform">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+            <div class="p-8 w-full text-center">
+                <div class="text-[10px] text-gray-400 font-bold mb-1 tracking-[0.2em]">WORLD GLOBAL CLICK</div>
+                <div id="global-score" class="text-2xl font-black text-sky-400 tracking-wider">0</div>
+            </div>
+        </section>
+
+        <!-- タブ2: アップグレード画面 -->
+        <section id="tab-upgrades" class="tab-content p-6 overflow-y-auto">
+            <h2 class="text-xl font-black text-gray-800 mb-6 flex items-center gap-2">
+                <span>🛒</span> アップグレード
+            </h2>
+            <div class="grid gap-4">
+                <button id="upg-click" class="upgrade-card w-full bg-white border-2 border-sky-100 p-5 rounded-[32px] flex items-center gap-4 text-left shadow-sm active:scale-[0.98]">
+                    <div class="w-16 h-16 bg-sky-50 rounded-2xl flex items-center justify-center text-3xl">🔥</div>
+                    <div class="flex-1">
+                        <div class="font-bold text-gray-800 text-base">パワーアップ</div>
+                        <div class="text-[10px] text-gray-400">クリック時の獲得量 +1</div>
+                        <div class="text-sky-600 font-black mt-1 text-sm"><span id="upg-click-cost">10</span> <span class="text-[10px]">pts</span></div>
+                    </div>
+                </button>
+
+                <button id="upg-auto" class="upgrade-card w-full bg-white border-2 border-indigo-100 p-5 rounded-[32px] flex items-center gap-4 text-left shadow-sm active:scale-[0.98]">
+                    <div class="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-3xl">🤖</div>
+                    <div class="flex-1">
+                        <div class="font-bold text-gray-800 text-base">自動ツール</div>
+                        <div class="text-[10px] text-gray-400">1秒あたりの自動獲得 +1</div>
+                        <div class="text-indigo-600 font-black mt-1 text-sm"><span id="upg-auto-cost">50</span> <span class="text-[10px]">pts</span></div>
+                    </div>
                 </button>
             </div>
-        </div>
+        </section>
+
+        <!-- タブ3: チャット画面 -->
+        <section id="tab-chat" class="tab-content">
+            <div class="p-5 flex-1 flex flex-col overflow-hidden">
+                <h2 class="text-xl font-black text-gray-800 mb-4 flex items-center gap-2">
+                    <span>💬</span> チャット
+                </h2>
+                <div id="chat-section" class="flex-1 bg-white/50 rounded-3xl p-4 overflow-y-auto space-y-3 shadow-inner border border-sky-50">
+                    <div class="text-[10px] text-gray-300 text-center font-bold italic">— Welcome to the World Chat —</div>
+                </div>
+                <div class="mt-4 flex gap-2">
+                    <input type="text" id="chat-input" class="flex-1 bg-white p-4 rounded-2xl text-sm outline-none shadow-sm border border-sky-100 focus:border-sky-400" placeholder="メッセージを入力...">
+                    <button id="chat-send" class="bg-sky-500 text-white w-14 h-14 flex items-center justify-center rounded-2xl shadow-lg shadow-sky-100 active:scale-90 transition-transform font-bold">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                    </button>
+                </div>
+            </div>
+        </section>
     </div>
 
-    <!-- 名前変更モーダル -->
-    <div id="name-modal" class="fixed inset-0 bg-gray-900/60 backdrop-blur-md z-[200] flex items-end sm:items-center justify-center hidden">
-        <div class="bg-white p-8 rounded-t-[40px] sm:rounded-[32px] w-full max-w-sm shadow-2xl animate-in slide-in-from-bottom duration-300">
-            <div class="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6 sm:hidden"></div>
-            <h3 class="font-black text-xl text-gray-800 mb-2">名前を変更</h3>
-            <p class="text-xs text-gray-400 mb-6 font-bold">オンラインで表示されるあなたの名前です</p>
-            <input type="text" id="name-input" class="w-full bg-gray-50 p-4 rounded-2xl mb-6 border-2 border-sky-100 focus:border-sky-500 outline-none text-lg font-bold" maxlength="10">
-            <div class="flex gap-3">
-                <button id="name-cancel" class="flex-1 py-4 text-gray-400 font-bold text-sm">戻る</button>
-                <button id="name-confirm" class="flex-2 py-4 px-8 bg-sky-500 text-white rounded-2xl font-black shadow-lg shadow-sky-200">決定</button>
+    <!-- ボトムナビゲーション -->
+    <nav class="bg-white border-t border-gray-100 p-2 pb-6 flex justify-around items-center shrink-0 z-50">
+        <button onclick="switchTab('home')" class="nav-btn active flex-1 py-3 flex flex-col items-center gap-1 rounded-2xl relative transition-all">
+            <span class="text-xl">💎</span>
+            <span class="text-[10px] font-bold">メイン</span>
+        </button>
+        <button onclick="switchTab('upgrades')" class="nav-btn flex-1 py-3 flex flex-col items-center gap-1 rounded-2xl relative transition-all">
+            <span class="text-xl">🛒</span>
+            <span class="text-[10px] font-bold">強化</span>
+        </button>
+        <button onclick="switchTab('chat')" class="nav-btn flex-1 py-3 flex flex-col items-center gap-1 rounded-2xl relative transition-all">
+            <div id="chat-notif" class="notification-dot"></div>
+            <span class="text-xl">💬</span>
+            <span class="text-[10px] font-bold">チャット</span>
+        </button>
+    </nav>
+
+    <!-- メンバー・プロフィール・管理モーダル -->
+    <div id="user-modal" class="fixed inset-0 bg-gray-900/60 backdrop-blur-md z-[200] flex items-end sm:items-center justify-center hidden">
+        <div class="bg-white p-8 rounded-t-[40px] sm:rounded-[32px] w-full max-w-sm shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="font-black text-xl text-gray-800">ルーム情報</h3>
+                <button id="close-modal" class="text-gray-400 font-bold">✕</button>
+            </div>
+            
+            <div class="mb-6">
+                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">自分の名前</label>
+                <div class="flex gap-2">
+                    <input type="text" id="name-input" class="flex-1 bg-gray-50 p-4 rounded-2xl border-2 border-sky-100 focus:border-sky-500 outline-none font-bold" maxlength="10">
+                    <button id="name-confirm" class="bg-sky-500 text-white px-6 rounded-2xl font-bold">更新</button>
+                </div>
+            </div>
+
+            <div>
+                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">接続中のメンバー</label>
+                <div id="member-list" class="space-y-2 max-h-40 overflow-y-auto pr-2">
+                    <!-- メンバーが動的に追加される -->
+                </div>
             </div>
         </div>
     </div>
@@ -177,23 +230,43 @@
             clickPower: 1,
             autoCps: 0,
             globalTotal: 0,
-            costs: { click: 10, auto: 50, mega: 500 },
+            costs: { click: 10, auto: 50 },
             name: "User_" + Math.floor(Math.random() * 900 + 100),
-            id: null
+            id: null,
+            currentTab: 'home',
+            unreadMessages: false
         };
 
+        const members = {};
         const connections = {};
         let peer;
+
+        function switchTab(tabId) {
+            gameState.currentTab = tabId;
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-' + tabId).classList.add('active');
+            
+            const btnIndex = ['home', 'upgrades', 'chat'].indexOf(tabId);
+            document.querySelectorAll('.nav-btn')[btnIndex].classList.add('active');
+
+            if (tabId === 'chat') {
+                gameState.unreadMessages = false;
+                document.getElementById('chat-notif').classList.remove('show');
+            }
+        }
 
         function initNetwork() {
             peer = new Peer();
             peer.on('open', (id) => {
                 gameState.id = id;
+                members[id] = gameState.name;
                 updateUI();
+                updateMemberList();
                 const urlParams = new URLSearchParams(window.location.search);
                 const joinId = urlParams.get('join');
                 if (joinId && joinId !== id) connectToPeer(joinId);
-                addSystemMessage("オンライン：接続完了");
+                addSystemMessage("ネットワークに接続しました");
             });
             peer.on('connection', setupConnection);
         }
@@ -205,24 +278,48 @@
         function setupConnection(conn) {
             conn.on('open', () => {
                 connections[conn.peer] = conn;
-                addSystemMessage("誰かが参加しました");
+                members[conn.peer] = "接続中...";
                 conn.send({ type: 'hello', name: gameState.name });
-                conn.on('data', handleData);
+                conn.on('data', (data) => handleData(conn, data));
             });
-            conn.on('close', () => delete connections[conn.peer]);
+            conn.on('close', () => {
+                const disconnectedName = members[conn.peer] || "不明なユーザー";
+                addSystemMessage(`${disconnectedName}が退出しました`);
+                delete connections[conn.peer];
+                delete members[conn.peer];
+                updateUI();
+                updateMemberList();
+            });
         }
 
-        function handleData(data) {
+        function handleData(conn, data) {
             switch(data.type) {
+                case 'hello':
+                    members[conn.peer] = data.name;
+                    addSystemMessage(`${data.name}がオンラインになりました`);
+                    updateUI();
+                    updateMemberList();
+                    break;
+                case 'name_change':
+                    const oldName = members[conn.peer];
+                    members[conn.peer] = data.newName;
+                    addSystemMessage(`${oldName}が名前を「${data.newName}」に変えました`);
+                    updateUI();
+                    updateMemberList();
+                    break;
                 case 'click':
                     gameState.globalTotal += data.amount;
                     updateUI();
                     break;
                 case 'upgrade':
-                    addSystemMessage(`${data.name}が「${data.item}」を購入！`);
+                    addSystemMessage(`${data.name}が「${data.item}」をゲット！`);
                     break;
                 case 'chat':
                     addChatMessage(data.name, data.msg);
+                    if (gameState.currentTab !== 'chat') {
+                        gameState.unreadMessages = true;
+                        document.getElementById('chat-notif').classList.add('show');
+                    }
                     break;
             }
         }
@@ -232,33 +329,54 @@
         }
 
         function updateUI() {
+            // スコア表示
             document.getElementById('score-display').innerText = Math.floor(gameState.score).toLocaleString();
-            document.getElementById('cps-display').innerText = gameState.autoCps.toLocaleString();
-            document.getElementById('global-score').innerText = gameState.globalTotal.toLocaleString();
+            document.getElementById('global-score').innerText = Math.floor(gameState.globalTotal).toLocaleString();
             document.getElementById('p-name').innerText = gameState.name;
+            
+            // ステータス表示
+            document.getElementById('stat-click').innerText = `+${gameState.clickPower}`;
+            document.getElementById('stat-auto').innerText = `${gameState.autoCps}/sec`;
 
+            // オンライン人数
+            const count = Object.keys(members).length;
+            document.getElementById('online-count').innerText = `${count}名接続中`;
+
+            // アップグレードボタン
             const btnClick = document.getElementById('upg-click');
             const btnAuto = document.getElementById('upg-auto');
-            const btnMega = document.getElementById('upg-mega');
 
             btnClick.disabled = gameState.score < gameState.costs.click;
             btnAuto.disabled = gameState.score < gameState.costs.auto;
-            btnMega.disabled = gameState.score < gameState.costs.mega;
 
             document.getElementById('upg-click-cost').innerText = gameState.costs.click;
             document.getElementById('upg-auto-cost').innerText = gameState.costs.auto;
-            document.getElementById('upg-mega-cost').innerText = gameState.costs.mega;
+        }
+
+        function updateMemberList() {
+            const list = document.getElementById('member-list');
+            list.innerHTML = "";
+            Object.keys(members).forEach(id => {
+                const isMe = id === gameState.id;
+                const div = document.createElement('div');
+                div.className = "flex items-center gap-3 p-3 bg-gray-50 rounded-2xl border border-gray-100";
+                div.innerHTML = `
+                    <div class="w-6 h-6 rounded-full ${isMe ? 'bg-sky-400' : 'bg-gray-300'} text-[10px] flex items-center justify-center text-white font-bold tracking-tighter">
+                        ${isMe ? 'ME' : 'ID'}
+                    </div>
+                    <span class="text-sm font-bold text-gray-700 truncate">${members[id]}</span>
+                    ${isMe ? '<span class="ml-auto text-[8px] bg-sky-100 text-sky-500 px-2 py-1 rounded-full font-black uppercase">You</span>' : ''}
+                `;
+                list.appendChild(div);
+            });
         }
 
         function createFloatingText(e, text) {
             const el = document.createElement('div');
             el.className = 'floating-text';
             el.innerText = '+' + text;
-            
-            // タッチとクリックの両方に対応
             const x = e.clientX || (e.touches ? e.touches[0].clientX : window.innerWidth/2);
             const y = e.clientY || (e.touches ? e.touches[0].clientY : window.innerHeight/2);
-            
             el.style.left = (x - 20) + 'px';
             el.style.top = (y - 40) + 'px';
             document.body.appendChild(el);
@@ -266,10 +384,8 @@
         }
 
         const clicker = document.getElementById('main-clicker');
-        
-        // スマホでのレスポンス向上のためタッチスタートを使用
         const handleClick = (e) => {
-            e.preventDefault();
+            if (e.cancelable) e.preventDefault();
             gameState.score += gameState.clickPower;
             gameState.globalTotal += gameState.clickPower;
             createFloatingText(e, gameState.clickPower);
@@ -288,7 +404,7 @@
                 gameState.score -= gameState.costs.click;
                 gameState.clickPower += 1;
                 gameState.costs.click = Math.floor(gameState.costs.click * 1.6);
-                broadcast({ type: 'upgrade', name: gameState.name, item: 'パワー' });
+                broadcast({ type: 'upgrade', name: gameState.name, item: 'パワーアップ' });
                 updateUI();
             }
         };
@@ -299,16 +415,6 @@
                 gameState.autoCps += 1;
                 gameState.costs.auto = Math.floor(gameState.costs.auto * 1.4);
                 broadcast({ type: 'upgrade', name: gameState.name, item: 'オート' });
-                updateUI();
-            }
-        };
-
-        document.getElementById('upg-mega').onclick = () => {
-            if (gameState.score >= gameState.costs.mega) {
-                gameState.score -= gameState.costs.mega;
-                gameState.autoCps += 10;
-                gameState.costs.mega = Math.floor(gameState.costs.mega * 1.5);
-                broadcast({ type: 'upgrade', name: gameState.name, item: 'メガ' });
                 updateUI();
             }
         };
@@ -324,8 +430,9 @@
 
         function addChatMessage(name, msg) {
             const div = document.createElement('div');
-            div.className = "flex gap-2 items-center";
-            div.innerHTML = `<span class="font-black text-sky-500 whitespace-nowrap">${name}:</span><span class="text-gray-600 truncate">${msg}</span>`;
+            div.className = "flex flex-col gap-0.5";
+            div.innerHTML = `<span class="text-[10px] font-black text-sky-500">${name}</span>
+                             <div class="bg-white p-3 rounded-2xl rounded-tl-none shadow-sm text-sm text-gray-700 max-w-[85%]">${msg}</div>`;
             const chatSec = document.getElementById('chat-section');
             chatSec.appendChild(div);
             chatSec.scrollTop = chatSec.scrollHeight;
@@ -333,8 +440,8 @@
 
         function addSystemMessage(msg) {
             const div = document.createElement('div');
-            div.className = "text-[9px] text-gray-300 font-bold italic";
-            div.innerText = `> ${msg}`;
+            div.className = "text-[10px] text-gray-400 text-center py-1 font-bold";
+            div.innerText = `— ${msg} —`;
             document.getElementById('chat-section').appendChild(div);
         }
 
@@ -347,18 +454,23 @@
             input.value = "";
         };
 
-        const modal = document.getElementById('name-modal');
-        const nameInput = document.getElementById('name-input');
-        document.getElementById('user-info').onclick = () => {
-            nameInput.value = gameState.name;
+        const modal = document.getElementById('user-modal');
+        document.getElementById('user-info-btn').onclick = () => {
+            document.getElementById('name-input').value = gameState.name;
+            updateMemberList();
             modal.classList.remove('hidden');
         };
-        document.getElementById('name-cancel').onclick = () => modal.classList.add('hidden');
+        document.getElementById('close-modal').onclick = () => modal.classList.add('hidden');
+
         document.getElementById('name-confirm').onclick = () => {
-            if (nameInput.value.trim()) {
-                gameState.name = nameInput.value.trim();
+            const newName = document.getElementById('name-input').value.trim();
+            if (newName && newName !== gameState.name) {
+                gameState.name = newName;
+                members[gameState.id] = newName;
+                broadcast({ type: 'name_change', newName: newName });
                 updateUI();
-                modal.classList.add('hidden');
+                updateMemberList();
+                addSystemMessage("名前を更新しました");
             }
         };
 
