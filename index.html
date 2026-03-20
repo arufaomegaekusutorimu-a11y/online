@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GAMING CLICKER - NEON YELLOW</title>
+    <title>ゲーミング・クリッカー - ネオンイエロー</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
@@ -27,7 +27,6 @@
             color: #ffffff;
         }
 
-        /* ゲーミング発光エフェクト */
         .neon-text {
             text-shadow: 0 0 10px rgba(250, 204, 21, 0.5), 0 0 20px rgba(250, 204, 21, 0.3);
         }
@@ -92,86 +91,83 @@
             background: linear-gradient(to bottom, rgba(250, 204, 21, 0.1), transparent);
         }
 
-        /* ゲーミングボタンの装飾 */
-        .btn-gaming {
-            clip-path: polygon(10% 0%, 100% 0%, 90% 100%, 0% 100%);
-            transition: all 0.2s;
-        }
-        .btn-gaming:active {
-            filter: brightness(1.2);
-            transform: skew(-2deg);
-        }
-
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* リザルト画面アニメーション */
+        @keyframes resultIn {
+            from { opacity: 0; transform: scale(1.1); filter: blur(10px); }
+            to { opacity: 1; transform: scale(1); filter: blur(0); }
+        }
+        .result-screen {
+            animation: resultIn 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+        }
     </style>
 </head>
 <body class="flex flex-col">
 
     <!-- 通知トースト -->
     <div id="toast" class="fixed top-24 left-1/2 -translate-x-1/2 bg-yellow-400 text-black px-8 py-3 rounded-none font-black shadow-[0_0_20px_rgba(250,204,21,0.5)] z-[100] hidden text-center w-[85%] italic skew-x-[-10deg]">
-        LINK COPIED TO CLIPBOARD
+        リンクをクリップボードにコピーしました
     </div>
 
-    <!-- ヘッダー: ゲーミングブラック -->
+    <!-- ヘッダー -->
     <header class="p-4 bg-[#111] border-b-2 border-yellow-400/30 z-20 shrink-0">
         <div class="flex justify-between items-center mb-4">
             <div id="user-info-btn" class="flex items-center gap-2 cursor-pointer bg-black/50 p-1 pr-4 border-l-4 border-yellow-400 active:scale-95 transition-transform max-w-[45%]">
-                <div class="w-8 h-8 bg-yellow-400 flex items-center justify-center text-black font-black text-xs shrink-0 italic">OP</div>
+                <div class="w-8 h-8 bg-yellow-400 flex items-center justify-center text-black font-black text-xs shrink-0 italic">ID</div>
                 <div class="flex flex-col min-w-0">
-                    <div id="p-name" class="text-[10px] font-bold text-yellow-400 truncate tracking-widest uppercase">PLAYER_ONE</div>
+                    <div id="p-name" class="text-[10px] font-bold text-yellow-400 truncate tracking-widest uppercase">プレイヤー1</div>
                     <div id="online-count" class="text-[7px] text-green-400 font-bold flex items-center gap-1">
-                        <span class="w-1 h-1 bg-green-400 rounded-full animate-pulse"></span> ONLINE
+                        <span class="w-1 h-1 bg-green-400 rounded-full animate-pulse"></span> オンライン
                     </div>
                 </div>
             </div>
             <div class="text-right flex-1 mx-2">
                 <div id="score-display" class="text-2xl font-black text-yellow-400 neon-text italic">0</div>
-                <div class="text-[8px] text-gray-500 font-black tracking-[0.3em] uppercase">Current Power</div>
+                <div class="text-[8px] text-gray-500 font-black tracking-[0.3em] uppercase">現在の獲得電力</div>
             </div>
             <button id="copy-btn" class="bg-yellow-400 text-black w-10 h-10 flex items-center justify-center shrink-0 active:scale-90 transition-transform font-black skew-x-[-10deg]">🔗</button>
         </div>
 
-        <!-- 目標進捗: デジタルゲージ -->
+        <!-- 進捗ゲージ -->
         <div class="px-1">
             <div class="flex justify-between items-end mb-1">
-                <div class="text-[8px] font-black text-yellow-400 uppercase tracking-[0.2em]">System Overload</div>
+                <div class="text-[8px] font-black text-yellow-400 uppercase tracking-[0.2em]">システム・オーバーロード</div>
                 <div class="text-[10px] font-black text-yellow-400 italic"><span id="goal-percent">0</span>%</div>
             </div>
             <div class="w-full h-2 bg-black border border-yellow-400/20 overflow-hidden relative">
                 <div id="progress-bar" class="progress-bar-fill h-full w-0"></div>
             </div>
-            <div id="goal-text" class="text-[7px] text-right mt-1 text-gray-500 font-bold tracking-widest uppercase">Target: <span id="target-goal-val">1000</span> Units</div>
+            <div id="goal-text" class="text-[7px] text-right mt-1 text-gray-500 font-bold tracking-widest uppercase">目標: <span id="target-goal-val">1000</span> ユニット</div>
         </div>
     </header>
 
-    <!-- メインコンテンツ -->
+    <!-- メイン -->
     <div class="flex-1 overflow-hidden relative bg-[radial-gradient(circle_at_center,_#1a1a1a_0%,_#0a0a0a_100%)]">
         
-        <!-- 背景のグリッド装飾 -->
+        <!-- 背景グリッド -->
         <div class="absolute inset-0 opacity-5 pointer-events-none" style="background-image: radial-gradient(#facc15 1px, transparent 1px); background-size: 20px 20px;"></div>
 
-        <!-- タブ1: メイン画面 -->
+        <!-- タブ1: ホーム -->
         <section id="tab-home" class="tab-content active items-center pt-6">
             <div id="goal-clear-banner" class="hidden bg-yellow-400 text-black px-10 py-1 font-black text-[10px] mb-4 shadow-[0_0_15px_rgba(250,204,21,0.6)] uppercase tracking-[0.5em] italic skew-x-[-15deg]">
-                SYSTEM CLEARED
+                システムクリア
             </div>
 
             <div class="flex gap-3 mb-6">
                 <div class="bg-black/60 border-l-2 border-yellow-400 px-4 py-2 text-center min-w-[110px]">
-                    <div class="text-[7px] font-bold text-gray-500 uppercase tracking-widest">Manual</div>
+                    <div class="text-[7px] font-bold text-gray-500 uppercase tracking-widest">マニュアル</div>
                     <div id="stat-click" class="text-sm font-black text-yellow-400">+1</div>
                 </div>
                 <div class="bg-black/60 border-l-2 border-yellow-400 px-4 py-2 text-center min-w-[110px]">
-                    <div class="text-[7px] font-bold text-gray-500 uppercase tracking-widest">Auto/sec</div>
+                    <div class="text-[7px] font-bold text-gray-500 uppercase tracking-widest">自動/秒</div>
                     <div id="stat-auto" class="text-sm font-black text-yellow-400">0</div>
                 </div>
             </div>
 
-            <!-- 画像クリックエリア -->
             <div id="main-clicker" class="relative flex-1 flex items-center justify-center w-full overflow-hidden">
                 <div class="absolute w-64 h-64 bg-yellow-400/5 blur-[100px] rounded-full"></div>
-                <!-- 枠線装飾 -->
                 <div class="absolute w-72 h-72 border border-yellow-400/10 rounded-full animate-[spin_10s_linear_infinite]"></div>
                 <div class="absolute w-80 h-80 border-t-2 border-b-2 border-yellow-400/20 rounded-full animate-[spin_15s_linear_infinite_reverse]"></div>
                 
@@ -179,7 +175,7 @@
             </div>
 
             <div class="p-6 w-full text-center bg-gradient-to-t from-black to-transparent">
-                <div class="text-[8px] text-gray-500 font-black mb-1 tracking-[0.4em] uppercase italic">Global Network Power</div>
+                <div class="text-[8px] text-gray-500 font-black mb-1 tracking-[0.4em] uppercase italic">グローバル・ネットワーク・パワー</div>
                 <div id="global-score" class="text-2xl font-black text-yellow-400 tracking-widest neon-text italic">0</div>
             </div>
         </section>
@@ -187,14 +183,14 @@
         <!-- タブ2: アップグレード -->
         <section id="tab-upgrades" class="tab-content p-5 overflow-y-auto no-scrollbar">
             <h2 class="text-xl font-black text-yellow-400 mb-6 italic tracking-widest flex items-center gap-2">
-                <span class="w-2 h-6 bg-yellow-400"></span> UPGRADES
+                <span class="w-2 h-6 bg-yellow-400"></span> アップグレード
             </h2>
             <div class="grid gap-4 pb-16">
                 <button id="upg-click" class="upgrade-card w-full bg-[#151515] border border-yellow-400/20 p-4 flex items-center gap-4 text-left active:scale-[0.98] disabled:opacity-30 group transition-all">
                     <div class="w-12 h-12 bg-yellow-400/10 border border-yellow-400/30 flex items-center justify-center text-2xl shrink-0 group-hover:bg-yellow-400/20">⚡</div>
                     <div class="flex-1 min-w-0">
-                        <div class="font-black text-white text-xs tracking-wider uppercase">Voltage Up</div>
-                        <div class="text-[9px] text-gray-500 font-bold uppercase">Click Strength +1</div>
+                        <div class="font-black text-white text-xs tracking-wider uppercase">ボルテージ・アップ</div>
+                        <div class="text-[9px] text-gray-500 font-bold uppercase">クリック強度 +1</div>
                         <div class="text-yellow-400 font-black mt-1 text-sm tracking-tighter italic"><span id="upg-click-cost">10</span> <span class="text-[9px]">CR</span></div>
                     </div>
                 </button>
@@ -202,8 +198,8 @@
                 <button id="upg-auto" class="upgrade-card w-full bg-[#151515] border border-yellow-400/20 p-4 flex items-center gap-4 text-left active:scale-[0.98] disabled:opacity-30 group transition-all">
                     <div class="w-12 h-12 bg-yellow-400/10 border border-yellow-400/30 flex items-center justify-center text-2xl shrink-0 group-hover:bg-yellow-400/20">⚙️</div>
                     <div class="flex-1 min-w-0">
-                        <div class="font-black text-white text-xs tracking-wider uppercase">Auto Bot</div>
-                        <div class="text-[9px] text-gray-500 font-bold uppercase">Passive Gain +1/sec</div>
+                        <div class="font-black text-white text-xs tracking-wider uppercase">オート・ボット</div>
+                        <div class="text-[9px] text-gray-500 font-bold uppercase">毎秒の自動獲得 +1</div>
                         <div class="text-yellow-400 font-black mt-1 text-sm tracking-tighter italic"><span id="upg-auto-cost">50</span> <span class="text-[9px]">CR</span></div>
                     </div>
                 </button>
@@ -214,62 +210,90 @@
         <section id="tab-chat" class="tab-content">
             <div class="p-4 flex-1 flex flex-col overflow-hidden">
                 <h2 class="text-xl font-black text-yellow-400 mb-4 italic tracking-widest flex items-center gap-2">
-                    <span class="w-2 h-6 bg-yellow-400"></span> COMMS
+                    <span class="w-2 h-6 bg-yellow-400"></span> 通信
                 </h2>
                 <div id="chat-section" class="flex-1 bg-black/40 border border-yellow-400/10 p-4 overflow-y-auto space-y-4 no-scrollbar"></div>
                 <div class="mt-4 flex gap-2 pb-2">
-                    <input type="text" id="chat-input" class="flex-1 bg-[#111] border border-yellow-400/30 p-3 text-xs outline-none focus:border-yellow-400 font-bold tracking-wider text-white" placeholder="TYPE MESSAGE...">
-                    <button id="chat-send" class="bg-yellow-400 text-black px-5 flex items-center justify-center font-black skew-x-[-10deg] active:scale-95">SEND</button>
+                    <input type="text" id="chat-input" class="flex-1 bg-[#111] border border-yellow-400/30 p-3 text-xs outline-none focus:border-yellow-400 font-bold tracking-wider text-white" placeholder="メッセージを入力...">
+                    <button id="chat-send" class="bg-yellow-400 text-black px-5 flex items-center justify-center font-black skew-x-[-10deg] active:scale-95">送信</button>
                 </div>
             </div>
         </section>
     </div>
 
-    <!-- ボトムナビ: ゲーミングブラック -->
+    <!-- フルスクリーンリザルト画面 -->
+    <div id="result-overlay" class="fixed inset-0 bg-black/95 z-[300] hidden flex flex-col items-center justify-center p-6 text-center result-screen">
+        <div class="w-full max-w-lg">
+            <h1 class="text-5xl font-black text-yellow-400 mb-2 italic neon-text italic tracking-tighter">SUCCESS</h1>
+            <p class="text-gray-500 text-[10px] tracking-[0.5em] mb-12 uppercase">システム・オーバーロード完了</p>
+            
+            <div class="bg-yellow-400 text-black p-4 mb-8 skew-x-[-10deg]">
+                <p class="text-[10px] font-black uppercase tracking-widest italic">総獲得エネルギー</p>
+                <p id="result-total-score" class="text-4xl font-black italic">0</p>
+            </div>
+
+            <div class="w-full mb-12">
+                <p class="text-[10px] font-black text-yellow-400/60 uppercase tracking-[0.3em] mb-4 italic">貢献度ランキング</p>
+                <div id="result-ranking" class="space-y-2">
+                    <!-- ランキングがここに生成される -->
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-4">
+                <button id="share-x" class="bg-white text-black py-4 px-8 font-black flex items-center justify-center gap-3 skew-x-[-10deg] hover:bg-yellow-400 transition-colors">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                    Xで結果をシェア
+                </button>
+                <button id="close-result" class="text-gray-500 text-xs font-bold hover:text-white transition-colors">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ボトムナビ -->
     <nav class="bg-[#0f0f0f] border-t-2 border-yellow-400/30 p-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] flex justify-around items-center shrink-0 z-50">
         <button onclick="switchTab('home')" class="nav-btn active flex-1 py-3 flex flex-col items-center gap-1 relative transition-all">
             <span class="text-lg">🎮</span>
-            <span class="text-[8px] font-black uppercase tracking-widest">Core</span>
+            <span class="text-[8px] font-black uppercase tracking-widest">コア</span>
         </button>
         <button onclick="switchTab('upgrades')" class="nav-btn flex-1 py-3 flex flex-col items-center gap-1 relative transition-all">
             <div id="upgrade-notif" class="absolute top-2 right-[30%] w-1.5 h-1.5 bg-red-500 rounded-full animate-ping hidden"></div>
             <span class="text-lg">🛠️</span>
-            <span class="text-[8px] font-black uppercase tracking-widest">Mod</span>
+            <span class="text-[8px] font-black uppercase tracking-widest">強化</span>
         </button>
         <button onclick="switchTab('chat')" class="nav-btn flex-1 py-3 flex flex-col items-center gap-1 relative transition-all">
             <div id="chat-notif" class="absolute top-2 right-[30%] w-1.5 h-1.5 bg-red-500 rounded-full animate-ping hidden"></div>
             <span class="text-lg">📟</span>
-            <span class="text-[8px] font-black uppercase tracking-widest">Net</span>
+            <span class="text-[8px] font-black uppercase tracking-widest">通信</span>
         </button>
     </nav>
 
-    <!-- 設定モーダル: ゲーミングデザイン -->
+    <!-- 設定モーダル -->
     <div id="user-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[200] flex items-end sm:items-center justify-center hidden p-0 sm:p-4">
         <div class="bg-[#111] border-t-4 sm:border-4 border-yellow-400 w-full max-w-sm shadow-[0_0_50px_rgba(0,0,0,1)] max-h-[85vh] flex flex-col overflow-hidden">
             <div class="flex justify-between items-center p-6 bg-yellow-400 shrink-0">
-                <h3 class="font-black text-lg text-black italic tracking-tighter uppercase">Config Menu</h3>
+                <h3 class="font-black text-lg text-black italic tracking-tighter uppercase">設定メニュー</h3>
                 <button id="close-modal" class="text-black p-1 font-black text-xl hover:rotate-90 transition-transform">✕</button>
             </div>
             
             <div class="p-6 space-y-8 overflow-y-auto no-scrollbar pb-16 flex-1">
                 <section>
-                    <label class="text-[9px] font-black text-yellow-400/60 uppercase tracking-[0.3em] block mb-3 italic">Identity Signature</label>
+                    <label class="text-[9px] font-black text-yellow-400/60 uppercase tracking-[0.3em] block mb-3 italic">プレイヤー名</label>
                     <div class="flex gap-2">
                         <input type="text" id="name-input" class="flex-1 bg-black border border-yellow-400/40 p-3 outline-none font-bold text-xs tracking-widest text-white focus:border-yellow-400" maxlength="12">
-                        <button id="name-confirm" class="bg-yellow-400 text-black px-4 font-black text-xs uppercase italic skew-x-[-10deg]">Save</button>
+                        <button id="name-confirm" class="bg-yellow-400 text-black px-4 font-black text-xs uppercase italic skew-x-[-10deg]">保存</button>
                     </div>
                 </section>
 
                 <section id="host-settings" class="hidden border-t border-white/5 pt-6">
-                    <label class="text-[9px] font-black text-yellow-400 uppercase tracking-[0.3em] block mb-3 italic">System Threshold (Host Only)</label>
+                    <label class="text-[9px] font-black text-yellow-400 uppercase tracking-[0.3em] block mb-3 italic">目標しきい値 (ホスト限定)</label>
                     <div class="flex gap-2">
-                        <input type="number" id="goal-input" class="flex-1 bg-black border border-yellow-400/40 p-3 outline-none font-bold text-xs text-white focus:border-yellow-400" placeholder="ENTER GOAL">
-                        <button id="goal-confirm" class="bg-yellow-400 text-black px-4 font-black text-xs uppercase italic skew-x-[-10deg]">Apply</button>
+                        <input type="number" id="goal-input" class="flex-1 bg-black border border-yellow-400/40 p-3 outline-none font-bold text-xs text-white focus:border-yellow-400" placeholder="目標値を入力">
+                        <button id="goal-confirm" class="bg-yellow-400 text-black px-4 font-black text-xs uppercase italic skew-x-[-10deg]">適用</button>
                     </div>
                 </section>
 
                 <section>
-                    <label class="text-[9px] font-black text-yellow-400/60 uppercase tracking-[0.3em] block mb-3 italic">Active Nodes</label>
+                    <label class="text-[9px] font-black text-yellow-400/60 uppercase tracking-[0.3em] block mb-3 italic">アクティブなノード</label>
                     <div id="member-list" class="space-y-2"></div>
                 </section>
                 
@@ -281,6 +305,7 @@
     <script>
         const gameState = {
             score: 0,
+            myContribution: 0, // 自分がそのセッションで稼いだ総量
             clickPower: 1,
             autoCps: 0,
             globalTotal: 0,
@@ -294,10 +319,10 @@
         };
 
         const members = {};
+        const contributionData = {}; // {peerId: score}
         const connections = {};
         let peer;
 
-        // 見切れ防止: 高さを動的に更新
         const appHeight = () => {
             document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
         };
@@ -309,12 +334,13 @@
             peer.on('open', (id) => {
                 gameState.id = id;
                 members[id] = gameState.name;
+                contributionData[id] = 0;
                 const urlParams = new URLSearchParams(window.location.search);
                 const joinId = urlParams.get('join');
                 if (!joinId) {
                     gameState.isHost = true;
                     document.getElementById('host-settings').classList.remove('hidden');
-                    addSystemMessage("YOU ARE THE HOST");
+                    addSystemMessage("あなたがホストです");
                 } else {
                     connectToPeer(joinId);
                 }
@@ -331,20 +357,23 @@
         function setupConnection(conn) {
             conn.on('open', () => {
                 connections[conn.peer] = conn;
-                members[conn.peer] = "CONNECTING...";
+                members[conn.peer] = "接続中...";
+                contributionData[conn.peer] = 0;
                 conn.send({ 
                     type: 'hello', 
                     name: gameState.name,
                     globalTotal: gameState.globalTotal,
-                    targetGoal: gameState.targetGoal
+                    targetGoal: gameState.targetGoal,
+                    contribution: gameState.myContribution
                 });
                 conn.on('data', (data) => handleData(conn, data));
             });
             conn.on('close', () => {
                 const dName = members[conn.peer] || "NODE";
-                addSystemMessage(`${dName} DISCONNECTED`);
+                addSystemMessage(`${dName} が切断しました`);
                 delete connections[conn.peer];
                 delete members[conn.peer];
+                // 貢献度データは残しておく（ランキング用）
                 updateUI();
                 updateMemberList();
             });
@@ -354,19 +383,28 @@
             switch(data.type) {
                 case 'hello':
                     members[conn.peer] = data.name;
+                    contributionData[conn.peer] = data.contribution || 0;
                     if (gameState.isHost) {
-                        conn.send({ type: 'sync_goal', goal: gameState.targetGoal, globalTotal: gameState.globalTotal });
+                        conn.send({ 
+                            type: 'sync_goal', 
+                            goal: gameState.targetGoal, 
+                            globalTotal: gameState.globalTotal,
+                            contributions: contributionData
+                        });
                     } else if (data.targetGoal) {
                         gameState.targetGoal = data.targetGoal;
                         gameState.globalTotal = Math.max(gameState.globalTotal, data.globalTotal || 0);
                     }
-                    addSystemMessage(`${data.name} JOINED THE NET`);
+                    addSystemMessage(`${data.name} がネットワークに参加しました`);
                     updateUI();
                     updateMemberList();
                     break;
                 case 'sync_goal':
                     gameState.targetGoal = data.goal;
                     if (data.globalTotal) gameState.globalTotal = data.globalTotal;
+                    if (data.contributions) {
+                        Object.assign(contributionData, data.contributions);
+                    }
                     updateUI();
                     break;
                 case 'name_change':
@@ -377,6 +415,7 @@
                     break;
                 case 'click':
                     gameState.globalTotal += data.amount;
+                    contributionData[conn.peer] = (contributionData[conn.peer] || 0) + data.amount;
                     updateUI();
                     break;
                 case 'chat':
@@ -394,7 +433,7 @@
             document.getElementById('score-display').innerText = Math.floor(gameState.score).toLocaleString();
             document.getElementById('global-score').innerText = Math.floor(gameState.globalTotal).toLocaleString();
             document.getElementById('p-name').innerText = gameState.name;
-            document.getElementById('online-count').innerHTML = `<span class="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span> ${Object.keys(members).length} NODE ACTIVE`;
+            document.getElementById('online-count').innerHTML = `<span class="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span> ${Object.keys(members).length} ノード接続中`;
             
             document.getElementById('stat-click').innerText = `+${gameState.clickPower}`;
             document.getElementById('stat-auto').innerText = `${gameState.autoCps}`;
@@ -404,32 +443,59 @@
             document.getElementById('goal-percent').innerText = percentage;
             document.getElementById('target-goal-val').innerText = gameState.targetGoal.toLocaleString();
 
+            // 目標達成チェック
             if (percentage >= 100) {
                 if (!gameState.goalReached) {
                     gameState.goalReached = true;
-                    addSystemMessage("CRITICAL LOAD REACHED: SYSTEM UNLOCKED");
+                    showResult();
                 }
                 document.getElementById('goal-clear-banner').classList.remove('hidden');
-                document.getElementById('progress-bar').classList.add('shadow-[0_0_15px_rgba(250,204,21,1)]');
             } else {
                 gameState.goalReached = false;
                 document.getElementById('goal-clear-banner').classList.add('hidden');
             }
 
+            // ボタン活性制御
             const btnClick = document.getElementById('upg-click');
             const btnAuto = document.getElementById('upg-auto');
-            const uNotif = document.getElementById('upgrade-notif');
-
             btnClick.disabled = gameState.score < gameState.costs.click;
             btnAuto.disabled = gameState.score < gameState.costs.auto;
             document.getElementById('upg-click-cost').innerText = gameState.costs.click;
             document.getElementById('upg-auto-cost').innerText = gameState.costs.auto;
 
+            const uNotif = document.getElementById('upgrade-notif');
             if ((!btnClick.disabled || !btnAuto.disabled) && gameState.currentTab !== 'upgrades') {
                 uNotif.classList.remove('hidden');
             } else {
                 uNotif.classList.add('hidden');
             }
+        }
+
+        function showResult() {
+            document.getElementById('result-overlay').classList.remove('hidden');
+            document.getElementById('result-total-score').innerText = Math.floor(gameState.globalTotal).toLocaleString();
+            
+            // ランキング生成
+            const rankingList = document.getElementById('result-ranking');
+            rankingList.innerHTML = "";
+            
+            // データをソート
+            const sorted = Object.entries(contributionData)
+                .map(([id, score]) => ({ name: members[id] || "不明なノード", score }))
+                .sort((a, b) => b.score - a.score);
+
+            sorted.slice(0, 5).forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = "flex items-center justify-between bg-white/5 p-3 skew-x-[-5deg]";
+                div.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <span class="text-yellow-400 font-black italic">#${index + 1}</span>
+                        <span class="text-xs font-bold uppercase truncate max-w-[120px]">${item.name}</span>
+                    </div>
+                    <span class="text-white font-black italic">${Math.floor(item.score).toLocaleString()} <span class="text-[8px] opacity-50">CR</span></span>
+                `;
+                rankingList.appendChild(div);
+            });
         }
 
         function updateMemberList() {
@@ -457,6 +523,9 @@
 
             gameState.score += gameState.clickPower;
             gameState.globalTotal += gameState.clickPower;
+            gameState.myContribution += gameState.clickPower;
+            contributionData[gameState.id] = gameState.myContribution;
+            
             createFloatingText(e, gameState.clickPower);
             broadcast({ type: 'click', amount: gameState.clickPower });
             updateUI();
@@ -468,7 +537,7 @@
         function createFloatingText(e, text) {
             const el = document.createElement('div');
             el.className = 'floating-text italic';
-            el.innerText = text;
+            el.innerText = `+${text}`;
             const rect = clicker.getBoundingClientRect();
             const x = e.clientX || (e.touches ? e.touches[0].clientX : rect.left + rect.width / 2);
             const y = e.clientY || (e.touches ? e.touches[0].clientY : rect.top + rect.height / 2);
@@ -501,7 +570,7 @@
             if (val > 0) {
                 gameState.targetGoal = val;
                 broadcast({ type: 'sync_goal', goal: val });
-                addSystemMessage(`GOAL UPDATED: ${val}`);
+                addSystemMessage(`目標を更新: ${val}`);
                 updateUI();
             }
         };
@@ -511,7 +580,10 @@
                 const step = gameState.autoCps / 10;
                 gameState.score += step;
                 gameState.globalTotal += step;
+                gameState.myContribution += step;
+                contributionData[gameState.id] = gameState.myContribution;
                 updateUI();
+                if (Math.random() < 0.1) broadcast({ type: 'click', amount: gameState.autoCps });
             }
         }, 100);
 
@@ -581,6 +653,16 @@
             const t = document.getElementById('toast');
             t.classList.remove('hidden');
             setTimeout(() => t.classList.add('hidden'), 2000);
+        };
+
+        document.getElementById('share-x').onclick = () => {
+            const text = `【ゲーミング・クリッカー】\nシステム・オーバーロード成功！\n総獲得パワー: ${Math.floor(gameState.globalTotal)}\n私の貢献度: ${Math.floor(gameState.myContribution)}\n\n協力して目標を達成せよ！ #GamingClicker #OZ`;
+            const url = window.location.origin + window.location.pathname + '?join=' + (gameState.id || "");
+            window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
+        };
+
+        document.getElementById('close-result').onclick = () => {
+            document.getElementById('result-overlay').classList.add('hidden');
         };
 
         window.onload = initNetwork;
