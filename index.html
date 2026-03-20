@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Online World</title>
+    <title>3D Online World - P2P</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- PeerJS: サーバー設定なしでP2P通信を可能にするライブラリ -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; font-family: sans-serif; }
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
@@ -19,12 +21,10 @@
     <div id="ui-layer" class="flex flex-col justify-between p-4 text-white">
         <div class="flex justify-between items-start">
             <div class="bg-black bg-opacity-50 p-3 rounded">
-                <h1 class="font-bold text-lg">OZ Simulator</h1>
+                <h1 class="font-bold text-lg">P2P OZ Simulator</h1>
                 <p class="text-xs text-gray-300">WASDで移動 / マウスで視点操作 / Enterでチャット</p>
-                <p id="user-count" class="text-xs text-blue-400 mt-1">接続中...</p>
-            </div>
-            <div id="loading-screen" class="bg-black p-4 rounded font-bold animate-pulse">
-                サーバー接続中...
+                <div id="status" class="text-xs text-yellow-400 mt-1">ID生成中...</div>
+                <p id="user-count" class="text-xs text-blue-400 mt-1">接続人数: 1</p>
             </div>
         </div>
 
@@ -34,22 +34,73 @@
         </div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    <script>
+        // --- PeerJS & Network Logic ---
+        // Firebaseの代わりにP2P(Peer-to-Peer)を使用します
+        let peer;
+        let myId;
+        const connections = {};
+        const remotePlayers = {};
 
-        // --- Firebase Config ---
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'vrc-demo';
+        function initNetwork() {
+            // ランダムなIDでPeerを作成。パブリックサーバーを利用するため設定不要。
+            peer = new Peer();
+
+            peer.on('open', (id) => {
+                myId = id;
+                document.getElementById('status').innerText = "接続完了 (ID: " + id.slice(0,5) + ")";
+                document.getElementById('status').classList.replace('text-yellow-400', 'text-green-400');
+                
+                // ここではデモ用として「同じURLを開いている人を探す」仕組みの代わりに
+                // 簡易的な「他の接続済みユーザーに自動接続する」機能はパブリックサーバーでは難しいため、
+                // 本来はルーム機能が必要ですが、ここでは「接続IDを自動的にリスト化」する代わりに
+                // 誰かが自分に接続してくるのを待ちます。
+            });
+
+            // 誰かが自分に接続してきた時
+            peer.on('connection', (conn) => {
+                setupConnection(conn);
+            });
+        }
+
+        function setupConnection(conn) {
+            conn.on('open', () => {
+                connections[conn.peer] = conn;
+                updateUserCount();
+                
+                conn.on('data', (data) => {
+                    handleNetworkData(conn.peer, data);
+                });
+            });
+
+            conn.on('close', () => {
+                removePlayer(conn.peer);
+            });
+        }
+
+        function handleNetworkData(peerId, data) {
+            if (data.type === 'move') {
+                if (!remotePlayers[peerId]) {
+                    remotePlayers[peerId] = createPlayerMesh(peerId, Math.random() * 0xffffff);
+                }
+                const p = remotePlayers[peerId];
+                p.position.set(data.x, data.y, data.z);
+                p.rotation.y = data.ry;
+            } else if (data.type === 'chat') {
+                addChatMessage(peerId, data.msg);
+            }
+        }
+
+        function broadcast(data) {
+            for (let id in connections) {
+                if (connections[id].open) {
+                    connections[id].send(data);
+                }
+            }
+        }
 
         // --- Three.js Setup ---
-        let scene, camera, renderer, floor;
-        const players = {}; // 他のプレイヤーのメッシュ
-        let myAvatar;
+        let scene, camera, renderer, myAvatar;
         let controls = { forward: false, backward: false, left: false, right: false };
         let yaw = 0, pitch = 0;
         
@@ -57,57 +108,37 @@
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x111122);
             scene.fog = new THREE.Fog(0x111122, 10, 50);
-
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            // Lighting
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-            scene.add(ambientLight);
-            const sunLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            sunLight.position.set(10, 20, 10);
-            scene.add(sunLight);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+            const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+            sun.position.set(10, 20, 10);
+            scene.add(sun);
+            scene.add(new THREE.GridHelper(100, 50, 0x4444ff, 0x222244));
 
-            // Floor (Grid)
-            const grid = new THREE.GridHelper(100, 50, 0x4444ff, 0x222244);
-            scene.add(grid);
-            
-            const floorGeo = new THREE.PlaneGeometry(100, 100);
-            const floorMat = new THREE.MeshPhongMaterial({ color: 0x050505 });
-            floor = new THREE.Mesh(floorGeo, floorMat);
-            floor.rotation.x = -Math.PI / 2;
-            scene.add(floor);
-
-            // My Avatar Placeholder
             myAvatar = new THREE.Group();
             scene.add(myAvatar);
-            myAvatar.position.y = 1;
+            myAvatar.position.set(Math.random()*10-5, 1, Math.random()*10-5);
 
-            window.addEventListener('resize', onWindowResize, false);
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
             document.addEventListener('keydown', (e) => updateControls(e.code, true));
             document.addEventListener('keyup', (e) => updateControls(e.code, false));
             document.addEventListener('mousemove', onMouseMove);
             document.addEventListener('click', () => {
-                if (document.activeElement !== document.getElementById('chat-input')) {
-                    renderer.domElement.requestPointerLock();
-                }
+                if (document.activeElement.tagName !== 'INPUT') renderer.domElement.requestPointerLock();
             });
         }
 
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
         function updateControls(code, state) {
-            if (document.activeElement === document.getElementById('chat-input')) {
-                controls.forward = controls.backward = controls.left = controls.right = false;
-                return;
-            }
+            if (document.activeElement.tagName === 'INPUT') return;
             if (code === 'KeyW' || code === 'ArrowUp') controls.forward = state;
             if (code === 'KeyS' || code === 'ArrowDown') controls.backward = state;
             if (code === 'KeyA' || code === 'ArrowLeft') controls.left = state;
@@ -123,157 +154,105 @@
             }
         }
 
-        function createPlayerMesh(id, color = 0xffffff) {
+        function createPlayerMesh(id, color) {
             const group = new THREE.Group();
-            
-            // Body
-            const body = new THREE.Mesh(
-                new THREE.BoxGeometry(0.6, 1, 0.4),
-                new THREE.MeshPhongMaterial({ color: color })
-            );
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1, 0.4), new THREE.MeshPhongMaterial({ color }));
             body.position.y = 0.5;
             group.add(body);
-
-            // Head
-            const head = new THREE.Mesh(
-                new THREE.BoxGeometry(0.4, 0.4, 0.4),
-                new THREE.MeshPhongMaterial({ color: 0xeeeeee })
-            );
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshPhongMaterial({ color: 0xffffff }));
             head.position.y = 1.3;
             group.add(head);
-
             scene.add(group);
             return group;
         }
 
-        // --- Multiplayer Logic ---
-        let userId;
-        const initAuth = async () => {
-            try {
-                const res = await signInAnonymously(auth);
-                userId = res.user.uid;
-                document.getElementById('loading-screen').style.display = 'none';
-                startSync();
-            } catch (err) {
-                console.error(err);
-                document.getElementById('loading-screen').innerText = "接続エラー";
+        function removePlayer(id) {
+            if (remotePlayers[id]) {
+                scene.remove(remotePlayers[id]);
+                delete remotePlayers[id];
             }
-        };
-
-        function startSync() {
-            // 他のプレイヤーの監視
-            const playersCol = collection(db, 'artifacts', appId, 'public', 'data', 'players');
-            onSnapshot(playersCol, (snapshot) => {
-                snapshot.docChanges().forEach((change) => {
-                    const data = change.doc.data();
-                    const id = change.doc.id;
-                    if (id === userId) return;
-
-                    if (change.type === "added" || change.type === "modified") {
-                        if (!players[id]) {
-                            players[id] = createPlayerMesh(id, Math.random() * 0xffffff);
-                        }
-                        players[id].position.set(data.x, data.y, data.z);
-                        players[id].rotation.y = data.ry;
-                    }
-                    if (change.type === "removed") {
-                        if (players[id]) {
-                            scene.remove(players[id]);
-                            delete players[id];
-                        }
-                    }
-                });
-                document.getElementById('user-count').innerText = `Online: ${Object.keys(players).length + 1}`;
-            });
-
-            // チャットの監視
-            const chatCol = collection(db, 'artifacts', appId, 'public', 'data', 'chats');
-            onSnapshot(chatCol, (snapshot) => {
-                const chatLog = document.getElementById('chat-log');
-                snapshot.docChanges().forEach(change => {
-                    if (change.type === "added") {
-                        const data = change.doc.data();
-                        const div = document.createElement('div');
-                        div.className = "mb-1";
-                        div.innerHTML = `<span class="text-blue-400 font-mono text-xs">${data.user.slice(0,5)}:</span> ${data.msg}`;
-                        chatLog.appendChild(div);
-                        chatLog.scrollTop = chatLog.scrollHeight;
-                    }
-                });
-            });
-
-            // 定期的に自分の位置を送信
-            setInterval(async () => {
-                if (!userId) return;
-                const userDoc = doc(db, 'artifacts', appId, 'public', 'data', 'players', userId);
-                await setDoc(userDoc, {
-                    x: myAvatar.position.x,
-                    y: myAvatar.position.y,
-                    z: myAvatar.position.z,
-                    ry: myAvatar.rotation.y,
-                    lastSeen: serverTimestamp()
-                });
-            }, 200);
+            delete connections[id];
+            updateUserCount();
         }
 
-        // チャット送信
-        document.getElementById('chat-input').addEventListener('keydown', async (e) => {
+        function updateUserCount() {
+            document.getElementById('user-count').innerText = `接続人数: ${Object.keys(connections).length + 1}`;
+        }
+
+        function addChatMessage(sender, msg) {
+            const log = document.getElementById('chat-log');
+            const div = document.createElement('div');
+            div.className = "mb-1";
+            div.innerHTML = `<span class="text-blue-400 font-mono text-xs">${sender.slice(0,5)}:</span> ${msg}`;
+            log.appendChild(div);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        document.getElementById('chat-input').addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && e.target.value.trim()) {
                 const msg = e.target.value;
+                addChatMessage('You', msg);
+                broadcast({ type: 'chat', msg: msg });
                 e.target.value = "";
                 e.target.blur();
-                const chatCol = collection(db, 'artifacts', appId, 'public', 'data', 'chats');
-                await setDoc(doc(chatCol), {
-                    user: userId,
-                    msg: msg,
-                    time: serverTimestamp()
-                });
             }
         });
 
-        // --- Game Loop ---
         function animate() {
             requestAnimationFrame(animate);
-
             if (myAvatar) {
                 const speed = 0.1;
                 const dir = new THREE.Vector3();
                 camera.getWorldDirection(dir);
-                dir.y = 0;
-                dir.normalize();
-
+                dir.y = 0; dir.normalize();
                 const side = new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0), dir).normalize();
 
                 if (controls.forward) myAvatar.position.addScaledVector(dir, speed);
                 if (controls.backward) myAvatar.position.addScaledVector(dir, -speed);
                 if (controls.left) myAvatar.position.addScaledVector(side, speed);
                 if (controls.right) myAvatar.position.addScaledVector(side, -speed);
-
                 myAvatar.rotation.y = yaw;
                 
-                // Camera follows avatar
                 camera.position.copy(myAvatar.position);
-                camera.position.y += 0.8; // Eye level
+                camera.position.y += 0.8;
                 camera.rotation.set(pitch, yaw, 0, 'YXZ');
-            }
 
+                // 位置をブロードキャスト (P2Pなので負荷軽減のため頻度は抑えめ)
+                if (frameCount % 3 === 0 && myId) {
+                    broadcast({
+                        type: 'move',
+                        x: myAvatar.position.x, y: myAvatar.position.y, z: myAvatar.position.z,
+                        ry: myAvatar.rotation.y
+                    });
+                }
+            }
+            frameCount++;
             renderer.render(scene, camera);
         }
 
+        let frameCount = 0;
         window.onload = () => {
             initThree();
-            initAuth();
+            initNetwork();
             animate();
+            
+            // 簡易的な「友達を招待」メッセージ
+            setTimeout(() => {
+                if (myId) {
+                    const url = window.location.href.split('?')[0] + '?join=' + myId;
+                    console.log("招待用URL:", url);
+                    addChatMessage("System", "このURLに?join=" + myId + " をつけて開くと他の人と繋がれます（簡易版）");
+                    
+                    // 自動接続チェック
+                    const params = new URLSearchParams(window.location.search);
+                    const target = params.get('join');
+                    if (target && target !== myId) {
+                        const conn = peer.connect(target);
+                        setupConnection(conn);
+                    }
+                }
+            }, 2000);
         };
-
-        // 退室時にデータを消す（簡易的）
-        window.onbeforeunload = () => {
-            if (userId) {
-                const userDoc = doc(db, 'artifacts', appId, 'public', 'data', 'players', userId);
-                deleteDoc(userDoc);
-            }
-        };
-
     </script>
 </body>
 </html>
