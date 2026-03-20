@@ -18,14 +18,16 @@
             touch-action: manipulation;
         }
 
-        .crystal-glow {
-            filter: drop-shadow(0 0 30px rgba(14, 165, 233, 0.5));
+        .main-character-glow {
+            filter: drop-shadow(0 0 20px rgba(14, 165, 233, 0.3));
             transition: transform 0.05s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             cursor: pointer;
             -webkit-tap-highlight-color: transparent;
+            max-width: 80%;
+            height: auto;
         }
-        .crystal-glow:active {
-            transform: scale(0.8);
+        .main-character-glow:active {
+            transform: scale(0.9);
         }
 
         .floating-text {
@@ -69,7 +71,6 @@
             filter: grayscale(0.8);
         }
 
-        /* 通知ドット */
         .notification-dot {
             position: absolute;
             top: 2px;
@@ -89,73 +90,74 @@
 <body class="h-screen flex flex-col">
 
     <!-- 通知トースト -->
-    <div id="toast" class="fixed top-24 left-1/2 -translate-x-1/2 bg-sky-600/90 backdrop-blur text-white px-6 py-3 rounded-full font-bold shadow-xl z-[100] hidden">
-        招待リンクをコピーしました！
+    <div id="toast" class="fixed top-24 left-1/2 -translate-x-1/2 bg-sky-600/90 backdrop-blur text-white px-6 py-3 rounded-full font-bold shadow-xl z-[100] hidden text-center w-[80%] max-w-xs">
+        リンクをコピーしました！
     </div>
 
-    <!-- ヘッダー：共通ステータス -->
+    <!-- ヘッダー -->
     <header class="p-4 flex justify-between items-center bg-white/70 backdrop-blur-lg shadow-sm z-20 shrink-0">
-        <div id="user-info-btn" class="flex items-center gap-2 cursor-pointer bg-white p-1 pr-4 rounded-full shadow-sm active:scale-95 transition-transform border border-sky-100">
-            <div class="w-8 h-8 rounded-full bg-sky-400 flex items-center justify-center text-white text-sm">👤</div>
-            <div class="flex flex-col">
-                <div id="p-name" class="text-xs font-bold text-gray-800 max-w-[80px] truncate">読み込み中...</div>
-                <div id="online-count" class="text-[8px] text-green-500 font-bold">1名接続中</div>
+        <div id="user-info-btn" class="flex items-center gap-2 cursor-pointer bg-white p-1 pr-3 rounded-full shadow-sm active:scale-95 transition-transform border border-sky-100 max-w-[40%]">
+            <div class="w-8 h-8 rounded-full bg-sky-400 flex items-center justify-center text-white text-sm shrink-0">👤</div>
+            <div class="flex flex-col min-w-0">
+                <div id="p-name" class="text-xs font-bold text-gray-800 truncate">読み込み中...</div>
+                <div id="online-count" class="text-[8px] text-green-500 font-bold whitespace-nowrap">1名接続中</div>
             </div>
         </div>
-        <div class="text-center">
-            <div id="score-display" class="text-2xl font-black text-sky-600">0</div>
-            <div class="text-[9px] text-gray-400 font-bold tracking-tight">TOTAL POINTS</div>
+        <div class="text-center flex-1 mx-2">
+            <div id="score-display" class="text-xl sm:text-2xl font-black text-sky-600 truncate">0</div>
+            <div class="text-[8px] sm:text-[9px] text-gray-400 font-bold tracking-tight">TOTAL POINTS</div>
         </div>
-        <button id="copy-btn" class="bg-sky-50 text-sky-500 w-10 h-10 rounded-full flex items-center justify-center active:scale-90 transition-transform font-bold">🔗</button>
+        <button id="copy-btn" class="bg-sky-50 text-sky-500 w-10 h-10 rounded-full flex items-center justify-center shrink-0 active:scale-90 transition-transform font-bold">🔗</button>
     </header>
 
-    <!-- メインコンテンツエリア -->
+    <!-- メインコンテンツ -->
     <div class="flex-1 overflow-hidden relative">
         
-        <!-- タブ1: クリック画面 -->
+        <!-- タブ1: メイン画面 -->
         <section id="tab-home" class="tab-content active items-center pt-8">
-            <!-- 現在の能力値ステータス -->
-            <div class="flex gap-4 mb-4">
-                <div class="bg-white px-4 py-2 rounded-2xl shadow-sm border border-sky-100 text-center">
+            <div class="flex gap-2 sm:gap-4 mb-4">
+                <div class="bg-white px-3 sm:px-4 py-2 rounded-2xl shadow-sm border border-sky-100 text-center min-w-[100px]">
                     <div class="text-[8px] font-bold text-gray-400 uppercase">Click Power</div>
                     <div id="stat-click" class="text-sm font-black text-sky-500">+1</div>
                 </div>
-                <div class="bg-white px-4 py-2 rounded-2xl shadow-sm border border-sky-100 text-center">
+                <div class="bg-white px-3 sm:px-4 py-2 rounded-2xl shadow-sm border border-sky-100 text-center min-w-[100px]">
                     <div class="text-[8px] font-bold text-gray-400 uppercase">Auto Power</div>
                     <div id="stat-auto" class="text-sm font-black text-indigo-500">0/sec</div>
                 </div>
             </div>
 
-            <div id="main-clicker" class="relative flex-1 flex items-center justify-center w-full">
+            <!-- 画像クリックエリア -->
+            <div id="main-clicker" class="relative flex-1 flex items-center justify-center w-full overflow-hidden">
                 <div class="absolute inset-0 bg-sky-300/20 blur-[80px] rounded-full scale-110"></div>
-                <div class="text-[200px] crystal-glow select-none">💎</div>
+                <!-- 1.png をクリック対象に変更 -->
+                <img src="1.png" alt="Character" class="main-character-glow select-none pointer-events-none" id="target-image">
             </div>
 
-            <div class="p-8 w-full text-center">
+            <div class="p-6 sm:p-8 w-full text-center">
                 <div class="text-[10px] text-gray-400 font-bold mb-1 tracking-[0.2em]">WORLD GLOBAL CLICK</div>
-                <div id="global-score" class="text-2xl font-black text-sky-400 tracking-wider">0</div>
+                <div id="global-score" class="text-xl sm:text-2xl font-black text-sky-400 tracking-wider">0</div>
             </div>
         </section>
 
-        <!-- タブ2: アップグレード画面 -->
-        <section id="tab-upgrades" class="tab-content p-6 overflow-y-auto">
+        <!-- タブ2: アップグレード -->
+        <section id="tab-upgrades" class="tab-content p-4 sm:p-6 overflow-y-auto">
             <h2 class="text-xl font-black text-gray-800 mb-6 flex items-center gap-2">
                 <span>🛒</span> アップグレード
             </h2>
             <div class="grid gap-4">
-                <button id="upg-click" class="upgrade-card w-full bg-white border-2 border-sky-100 p-5 rounded-[32px] flex items-center gap-4 text-left shadow-sm active:scale-[0.98]">
-                    <div class="w-16 h-16 bg-sky-50 rounded-2xl flex items-center justify-center text-3xl">🔥</div>
-                    <div class="flex-1">
-                        <div class="font-bold text-gray-800 text-base">パワーアップ</div>
+                <button id="upg-click" class="upgrade-card w-full bg-white border-2 border-sky-100 p-4 sm:p-5 rounded-[24px] sm:rounded-[32px] flex items-center gap-4 text-left shadow-sm active:scale-[0.98]">
+                    <div class="w-12 h-12 sm:w-16 sm:h-16 bg-sky-50 rounded-2xl flex items-center justify-center text-2xl sm:text-3xl shrink-0">🔥</div>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-bold text-gray-800 text-sm sm:text-base truncate">パワーアップ</div>
                         <div class="text-[10px] text-gray-400">クリック時の獲得量 +1</div>
                         <div class="text-sky-600 font-black mt-1 text-sm"><span id="upg-click-cost">10</span> <span class="text-[10px]">pts</span></div>
                     </div>
                 </button>
 
-                <button id="upg-auto" class="upgrade-card w-full bg-white border-2 border-indigo-100 p-5 rounded-[32px] flex items-center gap-4 text-left shadow-sm active:scale-[0.98]">
-                    <div class="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-3xl">🤖</div>
-                    <div class="flex-1">
-                        <div class="font-bold text-gray-800 text-base">自動ツール</div>
+                <button id="upg-auto" class="upgrade-card w-full bg-white border-2 border-indigo-100 p-4 sm:p-5 rounded-[24px] sm:rounded-[32px] flex items-center gap-4 text-left shadow-sm active:scale-[0.98]">
+                    <div class="w-12 h-12 sm:w-16 sm:h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-2xl sm:text-3xl shrink-0">🤖</div>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-bold text-gray-800 text-sm sm:text-base truncate">自動ツール</div>
                         <div class="text-[10px] text-gray-400">1秒あたりの自動獲得 +1</div>
                         <div class="text-indigo-600 font-black mt-1 text-sm"><span id="upg-auto-cost">50</span> <span class="text-[10px]">pts</span></div>
                     </div>
@@ -163,32 +165,33 @@
             </div>
         </section>
 
-        <!-- タブ3: チャット画面 -->
+        <!-- タブ3: チャット -->
         <section id="tab-chat" class="tab-content">
-            <div class="p-5 flex-1 flex flex-col overflow-hidden">
+            <div class="p-4 sm:p-5 flex-1 flex flex-col overflow-hidden">
                 <h2 class="text-xl font-black text-gray-800 mb-4 flex items-center gap-2">
                     <span>💬</span> チャット
                 </h2>
                 <div id="chat-section" class="flex-1 bg-white/50 rounded-3xl p-4 overflow-y-auto space-y-3 shadow-inner border border-sky-50">
-                    <div class="text-[10px] text-gray-300 text-center font-bold italic">— Welcome to the World Chat —</div>
+                    <div class="text-[10px] text-gray-300 text-center font-bold italic">— Welcome —</div>
                 </div>
                 <div class="mt-4 flex gap-2">
-                    <input type="text" id="chat-input" class="flex-1 bg-white p-4 rounded-2xl text-sm outline-none shadow-sm border border-sky-100 focus:border-sky-400" placeholder="メッセージを入力...">
-                    <button id="chat-send" class="bg-sky-500 text-white w-14 h-14 flex items-center justify-center rounded-2xl shadow-lg shadow-sky-100 active:scale-90 transition-transform font-bold">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                    <input type="text" id="chat-input" class="flex-1 bg-white p-3 sm:p-4 rounded-2xl text-sm outline-none shadow-sm border border-sky-100 focus:border-sky-400 min-w-0" placeholder="入力...">
+                    <button id="chat-send" class="bg-sky-500 text-white w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-2xl shadow-lg shrink-0 active:scale-90 transition-transform font-bold">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
                     </button>
                 </div>
             </div>
         </section>
     </div>
 
-    <!-- ボトムナビゲーション -->
+    <!-- ボトムナビ -->
     <nav class="bg-white border-t border-gray-100 p-2 pb-6 flex justify-around items-center shrink-0 z-50">
         <button onclick="switchTab('home')" class="nav-btn active flex-1 py-3 flex flex-col items-center gap-1 rounded-2xl relative transition-all">
-            <span class="text-xl">💎</span>
+            <span class="text-xl">🏠</span>
             <span class="text-[10px] font-bold">メイン</span>
         </button>
         <button onclick="switchTab('upgrades')" class="nav-btn flex-1 py-3 flex flex-col items-center gap-1 rounded-2xl relative transition-all">
+            <div id="upgrade-notif" class="notification-dot"></div>
             <span class="text-xl">🛒</span>
             <span class="text-[10px] font-bold">強化</span>
         </button>
@@ -199,26 +202,26 @@
         </button>
     </nav>
 
-    <!-- メンバー・プロフィール・管理モーダル -->
-    <div id="user-modal" class="fixed inset-0 bg-gray-900/60 backdrop-blur-md z-[200] flex items-end sm:items-center justify-center hidden">
-        <div class="bg-white p-8 rounded-t-[40px] sm:rounded-[32px] w-full max-w-sm shadow-2xl">
-            <div class="flex justify-between items-center mb-6">
+    <!-- メンバー・プロフィールモーダル -->
+    <div id="user-modal" class="fixed inset-0 bg-gray-900/60 backdrop-blur-md z-[200] flex items-end sm:items-center justify-center hidden p-0 sm:p-4">
+        <div class="bg-white p-6 sm:p-8 rounded-t-[32px] sm:rounded-[32px] w-full max-w-sm shadow-2xl max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center mb-6 shrink-0">
                 <h3 class="font-black text-xl text-gray-800">ルーム情報</h3>
-                <button id="close-modal" class="text-gray-400 font-bold">✕</button>
+                <button id="close-modal" class="text-gray-400 p-2 font-bold text-xl leading-none">✕</button>
             </div>
             
-            <div class="mb-6">
+            <div class="mb-6 shrink-0">
                 <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">自分の名前</label>
                 <div class="flex gap-2">
-                    <input type="text" id="name-input" class="flex-1 bg-gray-50 p-4 rounded-2xl border-2 border-sky-100 focus:border-sky-500 outline-none font-bold" maxlength="10">
-                    <button id="name-confirm" class="bg-sky-500 text-white px-6 rounded-2xl font-bold">更新</button>
+                    <input type="text" id="name-input" class="flex-1 bg-gray-50 p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 border-sky-100 focus:border-sky-500 outline-none font-bold text-sm min-w-0" maxlength="10">
+                    <button id="name-confirm" class="bg-sky-500 text-white px-4 sm:px-6 rounded-xl sm:rounded-2xl font-bold text-sm shrink-0 whitespace-nowrap">更新</button>
                 </div>
             </div>
 
-            <div>
-                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">接続中のメンバー</label>
-                <div id="member-list" class="space-y-2 max-h-40 overflow-y-auto pr-2">
-                    <!-- メンバーが動的に追加される -->
+            <div class="flex-1 overflow-hidden flex flex-col min-h-0">
+                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 shrink-0">接続中のメンバー</label>
+                <div id="member-list" class="space-y-2 overflow-y-auto pr-1 pb-2">
+                    <!-- メンバーリスト -->
                 </div>
             </div>
         </div>
@@ -329,25 +332,31 @@
         }
 
         function updateUI() {
-            // スコア表示
             document.getElementById('score-display').innerText = Math.floor(gameState.score).toLocaleString();
             document.getElementById('global-score').innerText = Math.floor(gameState.globalTotal).toLocaleString();
             document.getElementById('p-name').innerText = gameState.name;
             
-            // ステータス表示
             document.getElementById('stat-click').innerText = `+${gameState.clickPower}`;
             document.getElementById('stat-auto').innerText = `${gameState.autoCps}/sec`;
 
-            // オンライン人数
             const count = Object.keys(members).length;
             document.getElementById('online-count').innerText = `${count}名接続中`;
 
-            // アップグレードボタン
             const btnClick = document.getElementById('upg-click');
             const btnAuto = document.getElementById('upg-auto');
+            const upgradeNotif = document.getElementById('upgrade-notif');
 
-            btnClick.disabled = gameState.score < gameState.costs.click;
-            btnAuto.disabled = gameState.score < gameState.costs.auto;
+            const canBuyClick = gameState.score >= gameState.costs.click;
+            const canBuyAuto = gameState.score >= gameState.costs.auto;
+
+            btnClick.disabled = !canBuyClick;
+            btnAuto.disabled = !canBuyAuto;
+
+            if ((canBuyClick || canBuyAuto) && gameState.currentTab !== 'upgrades') {
+                upgradeNotif.classList.add('show');
+            } else {
+                upgradeNotif.classList.remove('show');
+            }
 
             document.getElementById('upg-click-cost').innerText = gameState.costs.click;
             document.getElementById('upg-auto-cost').innerText = gameState.costs.auto;
@@ -359,13 +368,13 @@
             Object.keys(members).forEach(id => {
                 const isMe = id === gameState.id;
                 const div = document.createElement('div');
-                div.className = "flex items-center gap-3 p-3 bg-gray-50 rounded-2xl border border-gray-100";
+                div.className = "flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 min-w-0";
                 div.innerHTML = `
-                    <div class="w-6 h-6 rounded-full ${isMe ? 'bg-sky-400' : 'bg-gray-300'} text-[10px] flex items-center justify-center text-white font-bold tracking-tighter">
+                    <div class="w-6 h-6 rounded-full ${isMe ? 'bg-sky-400' : 'bg-gray-300'} text-[10px] flex items-center justify-center text-white font-bold tracking-tighter shrink-0">
                         ${isMe ? 'ME' : 'ID'}
                     </div>
-                    <span class="text-sm font-bold text-gray-700 truncate">${members[id]}</span>
-                    ${isMe ? '<span class="ml-auto text-[8px] bg-sky-100 text-sky-500 px-2 py-1 rounded-full font-black uppercase">You</span>' : ''}
+                    <span class="text-sm font-bold text-gray-700 truncate min-w-0 flex-1">${members[id]}</span>
+                    ${isMe ? '<span class="ml-2 text-[8px] bg-sky-100 text-sky-500 px-2 py-1 rounded-full font-black uppercase shrink-0">You</span>' : ''}
                 `;
                 list.appendChild(div);
             });
@@ -375,8 +384,9 @@
             const el = document.createElement('div');
             el.className = 'floating-text';
             el.innerText = '+' + text;
-            const x = e.clientX || (e.touches ? e.touches[0].clientX : window.innerWidth/2);
-            const y = e.clientY || (e.touches ? e.touches[0].clientY : window.innerHeight/2);
+            const rect = document.getElementById('main-clicker').getBoundingClientRect();
+            const x = e.clientX || (e.touches ? e.touches[0].clientX : rect.left + rect.width / 2);
+            const y = e.clientY || (e.touches ? e.touches[0].clientY : rect.top + rect.height / 2);
             el.style.left = (x - 20) + 'px';
             el.style.top = (y - 40) + 'px';
             document.body.appendChild(el);
@@ -384,8 +394,17 @@
         }
 
         const clicker = document.getElementById('main-clicker');
+        const targetImage = document.getElementById('target-image');
+
         const handleClick = (e) => {
             if (e.cancelable) e.preventDefault();
+            
+            // アニメーション適用
+            targetImage.style.transform = 'scale(0.85)';
+            setTimeout(() => {
+                targetImage.style.transform = 'scale(1)';
+            }, 50);
+
             gameState.score += gameState.clickPower;
             gameState.globalTotal += gameState.clickPower;
             createFloatingText(e, gameState.clickPower);
@@ -432,7 +451,7 @@
             const div = document.createElement('div');
             div.className = "flex flex-col gap-0.5";
             div.innerHTML = `<span class="text-[10px] font-black text-sky-500">${name}</span>
-                             <div class="bg-white p-3 rounded-2xl rounded-tl-none shadow-sm text-sm text-gray-700 max-w-[85%]">${msg}</div>`;
+                             <div class="bg-white p-3 rounded-2xl rounded-tl-none shadow-sm text-sm text-gray-700 max-w-[90%] break-words">${msg}</div>`;
             const chatSec = document.getElementById('chat-section');
             chatSec.appendChild(div);
             chatSec.scrollTop = chatSec.scrollHeight;
