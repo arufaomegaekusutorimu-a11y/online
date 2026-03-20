@@ -14,17 +14,27 @@
         .pointer-events-auto { pointer-events: auto; }
         #chat-log { height: 150px; overflow-y: auto; background: rgba(0,0,0,0.5); }
         canvas { display: block; }
+        /* フェードアウトする通知メッセージ用 */
+        #toast { position: fixed; bottom: 20%; left: 50%; transform: translateX(-50%); background: rgba(0,255,0,0.8); color: black; padding: 10px 20px; border-radius: 20px; display: none; z-index: 100; }
     </style>
 </head>
 <body>
+
+    <div id="toast">コピーしました！</div>
 
     <div id="ui-layer" class="flex flex-col justify-between p-4 text-white">
         <div class="flex justify-between items-start">
             <div class="bg-black bg-opacity-50 p-3 rounded">
                 <h1 class="font-bold text-lg">P2P OZ Simulator</h1>
                 <p class="text-xs text-gray-300">WASDで移動 / マウスで視点操作 / Enterでチャット</p>
-                <div id="status" class="text-xs text-yellow-400 mt-1">ID生成中...</div>
-                <p id="user-count" class="text-xs text-blue-400 mt-1">接続人数: 1</p>
+                <div id="status" class="text-xs text-yellow-400 mt-1 font-mono">ID生成中...</div>
+                
+                <!-- 招待ボタンの追加 -->
+                <button id="copy-btn" class="mt-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-1 px-3 rounded pointer-events-auto transition-colors">
+                    🔗 招待URLをコピーして友達を呼ぶ
+                </button>
+                
+                <p id="user-count" class="text-xs text-blue-400 mt-2">接続人数: 1</p>
             </div>
         </div>
 
@@ -36,28 +46,28 @@
 
     <script>
         // --- PeerJS & Network Logic ---
-        // Firebaseの代わりにP2P(Peer-to-Peer)を使用します
         let peer;
         let myId;
         const connections = {};
         const remotePlayers = {};
 
         function initNetwork() {
-            // ランダムなIDでPeerを作成。パブリックサーバーを利用するため設定不要。
             peer = new Peer();
 
             peer.on('open', (id) => {
                 myId = id;
-                document.getElementById('status').innerText = "接続完了 (ID: " + id.slice(0,5) + ")";
+                document.getElementById('status').innerText = "ID: " + id;
                 document.getElementById('status').classList.replace('text-yellow-400', 'text-green-400');
                 
-                // ここではデモ用として「同じURLを開いている人を探す」仕組みの代わりに
-                // 簡易的な「他の接続済みユーザーに自動接続する」機能はパブリックサーバーでは難しいため、
-                // 本来はルーム機能が必要ですが、ここでは「接続IDを自動的にリスト化」する代わりに
-                // 誰かが自分に接続してくるのを待ちます。
+                // 自動接続チェック
+                const params = new URLSearchParams(window.location.search);
+                const target = params.get('join');
+                if (target && target !== myId) {
+                    const conn = peer.connect(target);
+                    setupConnection(conn);
+                }
             });
 
-            // 誰かが自分に接続してきた時
             peer.on('connection', (conn) => {
                 setupConnection(conn);
             });
@@ -67,6 +77,7 @@
             conn.on('open', () => {
                 connections[conn.peer] = conn;
                 updateUserCount();
+                addChatMessage("System", "新しいプレイヤーが接続しました");
                 
                 conn.on('data', (data) => {
                     handleNetworkData(conn.peer, data);
@@ -75,6 +86,7 @@
 
             conn.on('close', () => {
                 removePlayer(conn.peer);
+                addChatMessage("System", "プレイヤーが退出しました");
             });
         }
 
@@ -99,10 +111,30 @@
             }
         }
 
+        // --- 招待URLコピー機能 ---
+        document.getElementById('copy-btn').onclick = () => {
+            if (!myId) return;
+            const url = window.location.origin + window.location.pathname + '?join=' + myId;
+            
+            // クリップボードにコピー
+            const tempInput = document.createElement("input");
+            tempInput.value = url;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand("copy");
+            document.body.removeChild(tempInput);
+
+            // 通知を表示
+            const toast = document.getElementById('toast');
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 2000);
+        };
+
         // --- Three.js Setup ---
         let scene, camera, renderer, myAvatar;
         let controls = { forward: false, backward: false, left: false, right: false };
         let yaw = 0, pitch = 0;
+        let frameCount = 0;
         
         function initThree() {
             scene = new THREE.Scene();
@@ -183,7 +215,8 @@
             const log = document.getElementById('chat-log');
             const div = document.createElement('div');
             div.className = "mb-1";
-            div.innerHTML = `<span class="text-blue-400 font-mono text-xs">${sender.slice(0,5)}:</span> ${msg}`;
+            const name = sender.length > 8 ? sender.slice(0,5) : sender;
+            div.innerHTML = `<span class="text-blue-400 font-mono text-xs">${name}:</span> ${msg}`;
             log.appendChild(div);
             log.scrollTop = log.scrollHeight;
         }
@@ -217,7 +250,6 @@
                 camera.position.y += 0.8;
                 camera.rotation.set(pitch, yaw, 0, 'YXZ');
 
-                // 位置をブロードキャスト (P2Pなので負荷軽減のため頻度は抑えめ)
                 if (frameCount % 3 === 0 && myId) {
                     broadcast({
                         type: 'move',
@@ -230,28 +262,10 @@
             renderer.render(scene, camera);
         }
 
-        let frameCount = 0;
         window.onload = () => {
             initThree();
             initNetwork();
             animate();
-            
-            // 簡易的な「友達を招待」メッセージ
-            setTimeout(() => {
-                if (myId) {
-                    const url = window.location.href.split('?')[0] + '?join=' + myId;
-                    console.log("招待用URL:", url);
-                    addChatMessage("System", "このURLに?join=" + myId + " をつけて開くと他の人と繋がれます（簡易版）");
-                    
-                    // 自動接続チェック
-                    const params = new URLSearchParams(window.location.search);
-                    const target = params.get('join');
-                    if (target && target !== myId) {
-                        const conn = peer.connect(target);
-                        setupConnection(conn);
-                    }
-                }
-            }, 2000);
         };
     </script>
 </body>
