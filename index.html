@@ -2,270 +2,299 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Online World - P2P</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>2D Side-Scroller Online - P2P</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <!-- PeerJS: サーバー設定なしでP2P通信を可能にするライブラリ -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; font-family: sans-serif; }
+        body { margin: 0; overflow: hidden; background-color: #87CEEB; font-family: 'Helvetica Neue', sans-serif; touch-action: manipulation; }
+        canvas { display: block; }
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         .pointer-events-auto { pointer-events: auto; }
-        #chat-log { height: 150px; overflow-y: auto; background: rgba(0,0,0,0.5); }
-        canvas { display: block; }
-        /* フェードアウトする通知メッセージ用 */
-        #toast { position: fixed; bottom: 20%; left: 50%; transform: translateX(-50%); background: rgba(0,255,0,0.8); color: black; padding: 10px 20px; border-radius: 20px; display: none; z-index: 100; }
+        #chat-log { height: 80px; overflow-y: auto; background: rgba(0,0,0,0.5); scrollbar-width: thin; }
+        #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #4ade80; color: #000; padding: 8px 16px; border-radius: 999px; display: none; z-index: 100; font-weight: bold; }
+        
+        /* スマホ用操作ボタン */
+        .touch-btn { width: 70px; height: 70px; background: rgba(255,255,255,0.3); border: 2px solid rgba(255,255,255,0.5); border-radius: 50%; display: flex; items-center: center; justify-content: center; font-size: 24px; user-select: none; -webkit-tap-highlight-color: transparent; }
+        .touch-btn:active { background: rgba(255,255,255,0.5); }
     </style>
 </head>
 <body>
 
-    <div id="toast">コピーしました！</div>
+    <div id="toast">URLをコピーしました！</div>
 
+    <!-- UIレイヤー -->
     <div id="ui-layer" class="flex flex-col justify-between p-4 text-white">
         <div class="flex justify-between items-start">
-            <div class="bg-black bg-opacity-50 p-3 rounded">
-                <h1 class="font-bold text-lg">P2P OZ Simulator</h1>
-                <p class="text-xs text-gray-300">WASDで移動 / マウスで視点操作 / Enterでチャット</p>
-                <div id="status" class="text-xs text-yellow-400 mt-1 font-mono">ID生成中...</div>
+            <div class="bg-white bg-opacity-20 backdrop-blur-md p-3 rounded-xl shadow-lg border border-white border-opacity-30 text-gray-800 max-w-[200px]">
+                <h1 class="font-bold text-lg text-blue-800 leading-tight">2D Platformer OZ</h1>
+                <div id="status" class="text-[10px] text-orange-600 font-mono my-1 font-bold">通信準備中...</div>
                 
-                <!-- 招待ボタンの追加 -->
-                <button id="copy-btn" class="mt-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-1 px-3 rounded pointer-events-auto transition-colors">
-                    🔗 招待URLをコピーして友達を呼ぶ
+                <button id="copy-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold py-1 px-2 rounded pointer-events-auto transition-all shadow-md">
+                    🔗 招待URLをコピー
                 </button>
                 
-                <p id="user-count" class="text-xs text-blue-400 mt-2">接続人数: 1</p>
+                <p id="user-count" class="text-[10px] text-blue-800 mt-1 font-bold">オンライン: 1人</p>
             </div>
         </div>
 
-        <div class="w-full max-w-md pointer-events-auto">
-            <div id="chat-log" class="p-2 text-sm rounded-t border-b border-gray-700"></div>
-            <input type="text" id="chat-input" class="w-full bg-black bg-opacity-70 p-2 rounded-b focus:outline-none" placeholder="メッセージを入力...">
+        <!-- チャットとスマホ操作 -->
+        <div class="flex flex-col gap-4">
+            <!-- チャットエリア -->
+            <div class="w-full max-w-sm pointer-events-auto opacity-80 hover:opacity-100 transition-opacity">
+                <div id="chat-log" class="p-2 text-xs rounded-t-xl border-b border-gray-300 bg-white bg-opacity-80 text-gray-800 backdrop-blur-md"></div>
+                <input type="text" id="chat-input" class="w-full bg-white bg-opacity-90 p-2 rounded-b-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs text-gray-800" placeholder="チャット...">
+            </div>
+
+            <!-- スマホ用バーチャルパッド -->
+            <div class="flex justify-between items-end pb-4 pointer-events-none md:hidden">
+                <div class="flex gap-4 pointer-events-auto">
+                    <div id="btn-left" class="touch-btn">◀</div>
+                    <div id="btn-right" class="touch-btn">▶</div>
+                </div>
+                <div class="pointer-events-auto">
+                    <div id="btn-jump" class="touch-btn">▲</div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <script>
-        // --- PeerJS & Network Logic ---
-        let peer;
-        let myId;
-        const connections = {};
-        const remotePlayers = {};
+    <canvas id="gameCanvas"></canvas>
 
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const chatLog = document.getElementById('chat-log');
+        const chatInput = document.getElementById('chat-input');
+        const toast = document.getElementById('toast');
+
+        // --- 定数 ---
+        const GRAVITY = 0.5;
+        const JUMP_FORCE = -12;
+        const SPEED = 5;
+        const GROUND_Y = 100;
+        const PLAYER_W = 30;
+        const PLAYER_H = 50;
+
+        // --- ゲーム状態 ---
+        const player = {
+            id: null,
+            x: 100,
+            y: 0,
+            vx: 0,
+            vy: 0,
+            color: `hsl(${Math.random() * 360}, 70%, 50%)`,
+            isGrounded: false,
+            animFrame: 0,
+            facingRight: true,
+            isMoving: false
+        };
+
+        const remotePlayers = {};
+        const connections = {};
+        const keys = {};
+        let peer;
+
+        // --- ネットワーク ---
         function initNetwork() {
             peer = new Peer();
-
             peer.on('open', (id) => {
-                myId = id;
-                document.getElementById('status').innerText = "ID: " + id;
-                document.getElementById('status').classList.replace('text-yellow-400', 'text-green-400');
-                
-                // 自動接続チェック
+                player.id = id;
+                document.getElementById('status').innerText = "ONLINE ID: " + id.slice(0, 8);
+                document.getElementById('status').classList.replace('text-orange-600', 'text-green-700');
                 const params = new URLSearchParams(window.location.search);
                 const target = params.get('join');
-                if (target && target !== myId) {
-                    const conn = peer.connect(target);
-                    setupConnection(conn);
+                if (target && target !== id) {
+                    setupConnection(peer.connect(target));
                 }
             });
-
-            peer.on('connection', (conn) => {
-                setupConnection(conn);
-            });
+            peer.on('connection', (conn) => setupConnection(conn));
         }
 
         function setupConnection(conn) {
             conn.on('open', () => {
                 connections[conn.peer] = conn;
                 updateUserCount();
-                addChatMessage("System", "新しいプレイヤーが接続しました");
-                
+                addChatMessage("System", "新しいプレイヤーが入室しました");
                 conn.on('data', (data) => {
-                    handleNetworkData(conn.peer, data);
+                    if (data.type === 'sync') remotePlayers[conn.peer] = data;
+                    else if (data.type === 'chat') addChatMessage(conn.peer.slice(0, 5), data.msg);
                 });
             });
-
             conn.on('close', () => {
-                removePlayer(conn.peer);
+                delete remotePlayers[conn.peer];
+                delete connections[conn.peer];
+                updateUserCount();
                 addChatMessage("System", "プレイヤーが退出しました");
             });
         }
 
-        function handleNetworkData(peerId, data) {
-            if (data.type === 'move') {
-                if (!remotePlayers[peerId]) {
-                    remotePlayers[peerId] = createPlayerMesh(peerId, Math.random() * 0xffffff);
-                }
-                const p = remotePlayers[peerId];
-                p.position.set(data.x, data.y, data.z);
-                p.rotation.y = data.ry;
-            } else if (data.type === 'chat') {
-                addChatMessage(peerId, data.msg);
-            }
-        }
-
         function broadcast(data) {
             for (let id in connections) {
-                if (connections[id].open) {
-                    connections[id].send(data);
-                }
+                if (connections[id].open) connections[id].send(data);
             }
         }
 
-        // --- 招待URLコピー機能 ---
-        document.getElementById('copy-btn').onclick = () => {
-            if (!myId) return;
-            const url = window.location.origin + window.location.pathname + '?join=' + myId;
-            
-            // クリップボードにコピー
-            const tempInput = document.createElement("input");
-            tempInput.value = url;
-            document.body.appendChild(tempInput);
-            tempInput.select();
-            document.execCommand("copy");
-            document.body.removeChild(tempInput);
+        // --- ゲームロジック ---
+        function update() {
+            player.vx = 0;
+            player.isMoving = false;
 
-            // 通知を表示
-            const toast = document.getElementById('toast');
+            if (document.activeElement !== chatInput) {
+                // キーボードまたはスマホボタン入力の判定
+                if (keys['ArrowLeft'] || keys['KeyA'] || keys['TouchLeft']) {
+                    player.vx = -SPEED;
+                    player.facingRight = false;
+                    player.isMoving = true;
+                }
+                if (keys['ArrowRight'] || keys['KeyD'] || keys['TouchRight']) {
+                    player.vx = SPEED;
+                    player.facingRight = true;
+                    player.isMoving = true;
+                }
+                if ((keys['ArrowUp'] || keys['KeyW'] || keys['Space'] || keys['TouchJump']) && player.isGrounded) {
+                    player.vy = JUMP_FORCE;
+                    player.isGrounded = false;
+                }
+            }
+
+            // 物理演算
+            player.vy += GRAVITY;
+            player.x += player.vx;
+            player.y += player.vy;
+
+            // --- 画面外制限 (境界) ---
+            if (player.x < 0) player.x = 0;
+            if (player.x > canvas.width - PLAYER_W) player.x = canvas.width - PLAYER_W;
+
+            // 地面との当たり判定
+            const groundPos = canvas.height - GROUND_Y;
+            if (player.y + PLAYER_H > groundPos) {
+                player.y = groundPos - PLAYER_H;
+                player.vy = 0;
+                player.isGrounded = true;
+            }
+
+            if (player.isMoving) player.animFrame += 0.15;
+            else player.animFrame = 0;
+
+            if (player.id) {
+                broadcast({
+                    type: 'sync',
+                    x: player.x, y: player.y, color: player.color,
+                    animFrame: player.animFrame, facingRight: player.facingRight, isMoving: player.isMoving
+                });
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBackground();
+            for (let id in remotePlayers) {
+                const p = remotePlayers[id];
+                drawHuman(p.x, p.y, p.color, p.animFrame, p.facingRight, id.slice(0,5));
+            }
+            drawHuman(player.x, player.y, player.color, player.animFrame, player.facingRight, "You");
+        }
+
+        function drawBackground() {
+            ctx.fillStyle = '#4ade80';
+            ctx.fillRect(0, canvas.height - GROUND_Y, canvas.width, GROUND_Y);
+            ctx.fillStyle = '#22c55e';
+            ctx.fillRect(0, canvas.height - GROUND_Y, canvas.width, 10);
+        }
+
+        function drawHuman(x, y, color, frame, isRight, name) {
+            ctx.save();
+            ctx.translate(x + PLAYER_W/2, y + PLAYER_H/2);
+            if (!isRight) ctx.scale(-1, 1);
+            const walkCycle = Math.sin(frame) * 15;
+            const walkCycleInv = Math.sin(frame + Math.PI) * 15;
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 6;
+            ctx.lineCap = 'round';
+            ctx.beginPath(); ctx.moveTo(0, 10); ctx.lineTo(walkCycleInv * 0.5, 25); ctx.stroke();
+            ctx.fillStyle = color;
+            ctx.beginPath(); ctx.roundRect(-10, -15, 20, 25, 5); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(0, 10); ctx.lineTo(walkCycle * 0.5, 25); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, -10); ctx.lineTo(walkCycleInv * 0.4, 5); ctx.stroke();
+            ctx.fillStyle = '#ffdbac';
+            ctx.beginPath(); ctx.arc(0, -25, 12, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = 'black';
+            ctx.beginPath(); ctx.arc(5, -27, 2, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(0, -10); ctx.lineTo(walkCycle * 0.4, 5); ctx.stroke();
+            ctx.restore();
+            ctx.fillStyle = 'black';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(name, x + PLAYER_W/2, y - 45);
+        }
+
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        function updateUserCount() {
+            document.getElementById('user-count').innerText = `オンライン: ${Object.keys(connections).length + 1}人`;
+        }
+
+        function addChatMessage(sender, msg) {
+            const div = document.createElement('div');
+            div.className = "mb-1 border-l-2 border-blue-400 pl-2";
+            div.innerHTML = `<span class="text-blue-600 font-bold text-[10px]">${sender}:</span> <span class="text-gray-700 text-[11px]">${msg}</span>`;
+            chatLog.appendChild(div);
+            chatLog.scrollTop = chatLog.scrollHeight;
+        }
+
+        // --- スマホ操作イベント設定 ---
+        const bindTouch = (id, key) => {
+            const btn = document.getElementById(id);
+            btn.addEventListener('touchstart', (e) => { e.preventDefault(); keys[key] = true; });
+            btn.addEventListener('touchend', (e) => { e.preventDefault(); keys[key] = false; });
+        };
+        bindTouch('btn-left', 'TouchLeft');
+        bindTouch('btn-right', 'TouchRight');
+        bindTouch('btn-jump', 'TouchJump');
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        window.addEventListener('keydown', (e) => { keys[e.code] = true; });
+        window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && chatInput.value.trim()) {
+                const msg = chatInput.value;
+                addChatMessage("You", msg);
+                broadcast({ type: 'chat', msg: msg });
+                chatInput.value = "";
+                chatInput.blur();
+            }
+        });
+
+        document.getElementById('copy-btn').onclick = () => {
+            if (!player.id) return;
+            const url = window.location.origin + window.location.pathname + '?join=' + player.id;
+            const el = document.createElement('textarea');
+            el.value = url;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
             toast.style.display = 'block';
             setTimeout(() => { toast.style.display = 'none'; }, 2000);
         };
 
-        // --- Three.js Setup ---
-        let scene, camera, renderer, myAvatar;
-        let controls = { forward: false, backward: false, left: false, right: false };
-        let yaw = 0, pitch = 0;
-        let frameCount = 0;
-        
-        function initThree() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x111122);
-            scene.fog = new THREE.Fog(0x111122, 10, 50);
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
-
-            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-            const sun = new THREE.DirectionalLight(0xffffff, 0.8);
-            sun.position.set(10, 20, 10);
-            scene.add(sun);
-            scene.add(new THREE.GridHelper(100, 50, 0x4444ff, 0x222244));
-
-            myAvatar = new THREE.Group();
-            scene.add(myAvatar);
-            myAvatar.position.set(Math.random()*10-5, 1, Math.random()*10-5);
-
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
-
-            document.addEventListener('keydown', (e) => updateControls(e.code, true));
-            document.addEventListener('keyup', (e) => updateControls(e.code, false));
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('click', () => {
-                if (document.activeElement.tagName !== 'INPUT') renderer.domElement.requestPointerLock();
-            });
-        }
-
-        function updateControls(code, state) {
-            if (document.activeElement.tagName === 'INPUT') return;
-            if (code === 'KeyW' || code === 'ArrowUp') controls.forward = state;
-            if (code === 'KeyS' || code === 'ArrowDown') controls.backward = state;
-            if (code === 'KeyA' || code === 'ArrowLeft') controls.left = state;
-            if (code === 'KeyD' || code === 'ArrowRight') controls.right = state;
-            if (code === 'Enter' && state) document.getElementById('chat-input').focus();
-        }
-
-        function onMouseMove(e) {
-            if (document.pointerLockElement === renderer.domElement) {
-                yaw -= e.movementX * 0.002;
-                pitch -= e.movementY * 0.002;
-                pitch = Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, pitch));
-            }
-        }
-
-        function createPlayerMesh(id, color) {
-            const group = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1, 0.4), new THREE.MeshPhongMaterial({ color }));
-            body.position.y = 0.5;
-            group.add(body);
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshPhongMaterial({ color: 0xffffff }));
-            head.position.y = 1.3;
-            group.add(head);
-            scene.add(group);
-            return group;
-        }
-
-        function removePlayer(id) {
-            if (remotePlayers[id]) {
-                scene.remove(remotePlayers[id]);
-                delete remotePlayers[id];
-            }
-            delete connections[id];
-            updateUserCount();
-        }
-
-        function updateUserCount() {
-            document.getElementById('user-count').innerText = `接続人数: ${Object.keys(connections).length + 1}`;
-        }
-
-        function addChatMessage(sender, msg) {
-            const log = document.getElementById('chat-log');
-            const div = document.createElement('div');
-            div.className = "mb-1";
-            const name = sender.length > 8 ? sender.slice(0,5) : sender;
-            div.innerHTML = `<span class="text-blue-400 font-mono text-xs">${name}:</span> ${msg}`;
-            log.appendChild(div);
-            log.scrollTop = log.scrollHeight;
-        }
-
-        document.getElementById('chat-input').addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && e.target.value.trim()) {
-                const msg = e.target.value;
-                addChatMessage('You', msg);
-                broadcast({ type: 'chat', msg: msg });
-                e.target.value = "";
-                e.target.blur();
-            }
-        });
-
-        function animate() {
-            requestAnimationFrame(animate);
-            if (myAvatar) {
-                const speed = 0.1;
-                const dir = new THREE.Vector3();
-                camera.getWorldDirection(dir);
-                dir.y = 0; dir.normalize();
-                const side = new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0), dir).normalize();
-
-                if (controls.forward) myAvatar.position.addScaledVector(dir, speed);
-                if (controls.backward) myAvatar.position.addScaledVector(dir, -speed);
-                if (controls.left) myAvatar.position.addScaledVector(side, speed);
-                if (controls.right) myAvatar.position.addScaledVector(side, -speed);
-                myAvatar.rotation.y = yaw;
-                
-                camera.position.copy(myAvatar.position);
-                camera.position.y += 0.8;
-                camera.rotation.set(pitch, yaw, 0, 'YXZ');
-
-                if (frameCount % 3 === 0 && myId) {
-                    broadcast({
-                        type: 'move',
-                        x: myAvatar.position.x, y: myAvatar.position.y, z: myAvatar.position.z,
-                        ry: myAvatar.rotation.y
-                    });
-                }
-            }
-            frameCount++;
-            renderer.render(scene, camera);
-        }
-
         window.onload = () => {
-            initThree();
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            player.y = canvas.height - GROUND_Y - PLAYER_H;
             initNetwork();
-            animate();
+            loop();
         };
     </script>
 </body>
