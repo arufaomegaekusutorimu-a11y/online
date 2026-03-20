@@ -117,7 +117,14 @@
                 updateUserCount();
                 addChatMessage("System", "新しいプレイヤーが入室しました");
                 conn.on('data', (data) => {
-                    if (data.type === 'sync') remotePlayers[conn.peer] = data;
+                    if (data.type === 'sync') {
+                        // 受信した割合座標を現在の画面サイズに合わせてピクセルに変換
+                        remotePlayers[conn.peer] = {
+                            ...data,
+                            x: data.rx * canvas.width,
+                            y: (canvas.height - GROUND_Y) - (data.ry_offset) - PLAYER_H
+                        };
+                    }
                     else if (data.type === 'chat') addChatMessage(conn.peer.slice(0, 5), data.msg);
                 });
             });
@@ -141,7 +148,6 @@
             player.isMoving = false;
 
             if (document.activeElement !== chatInput) {
-                // キーボードまたはスマホボタン入力の判定
                 if (keys['ArrowLeft'] || keys['KeyA'] || keys['TouchLeft']) {
                     player.vx = -SPEED;
                     player.facingRight = false;
@@ -163,7 +169,7 @@
             player.x += player.vx;
             player.y += player.vy;
 
-            // --- 画面外制限 (境界) ---
+            // 画面外制限
             if (player.x < 0) player.x = 0;
             if (player.x > canvas.width - PLAYER_W) player.x = canvas.width - PLAYER_W;
 
@@ -179,10 +185,17 @@
             else player.animFrame = 0;
 
             if (player.id) {
+                // 座標を画面サイズに対する「割合」で送信する
+                // rx: 横幅の何%の位置か
+                // ry_offset: 地面から何ピクセル浮いているか
                 broadcast({
                     type: 'sync',
-                    x: player.x, y: player.y, color: player.color,
-                    animFrame: player.animFrame, facingRight: player.facingRight, isMoving: player.isMoving
+                    rx: player.x / canvas.width, 
+                    ry_offset: (canvas.height - GROUND_Y) - (player.y + PLAYER_H),
+                    color: player.color,
+                    animFrame: player.animFrame, 
+                    facingRight: player.facingRight, 
+                    isMoving: player.isMoving
                 });
             }
         }
@@ -192,7 +205,10 @@
             drawBackground();
             for (let id in remotePlayers) {
                 const p = remotePlayers[id];
-                drawHuman(p.x, p.y, p.color, p.animFrame, p.facingRight, id.slice(0,5));
+                // 描画直前に最新の画面サイズで再計算（リサイズ対応）
+                const drawX = p.rx * canvas.width;
+                const drawY = (canvas.height - GROUND_Y) - p.ry_offset - PLAYER_H;
+                drawHuman(drawX, drawY, p.color, p.animFrame, p.facingRight, id.slice(0,5));
             }
             drawHuman(player.x, player.y, player.color, player.animFrame, player.facingRight, "You");
         }
@@ -248,7 +264,6 @@
             chatLog.scrollTop = chatLog.scrollHeight;
         }
 
-        // --- スマホ操作イベント設定 ---
         const bindTouch = (id, key) => {
             const btn = document.getElementById(id);
             btn.addEventListener('touchstart', (e) => { e.preventDefault(); keys[key] = true; });
@@ -259,8 +274,13 @@
         bindTouch('btn-jump', 'TouchJump');
 
         window.addEventListener('resize', () => {
+            // リサイズ時に自分の位置も割合で再計算してズレを防ぐ
+            const rx = player.x / canvas.width;
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
+            player.x = rx * canvas.width;
+            // 地面に接地させる
+            if (player.isGrounded) player.y = canvas.height - GROUND_Y - PLAYER_H;
         });
 
         window.addEventListener('keydown', (e) => { keys[e.code] = true; });
